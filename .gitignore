@@ -1,0 +1,40 @@
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Streamlit
+.streamlit/secrets.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup files
+*_backup_*.py
+
+# API Keys and Secrets (IMPORTANT!)
+.env
+secrets.toml
+*.key
+credentials.json
+
+# Temporary files
+*.log
+*.tmp
+/tmp/
