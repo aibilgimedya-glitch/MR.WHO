@@ -448,6 +448,64 @@ def analyze_reference_image(api_key, image):
     except Exception as e:
         return None, f"Analysis error: {str(e)}"
 
+def analyze_product_images(api_key, images, product_context=""):
+    """
+    Analyzes multiple product images for commercial video production
+    Returns insights about best angles, lighting, colors, and shot suggestions
+    """
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-2.5-flash')
+
+        # Create analysis prompt for product/commercial context
+        analysis_prompt = f"""
+        Analyze these product/reference images for creating a commercial video.
+        Product context: {product_context if product_context else "General product"}
+
+        Provide detailed analysis in JSON format:
+
+        {{
+          "product_summary": "Brief description of the product(s) shown",
+          "color_palette": ["color1", "color2", "color3"],
+          "dominant_colors_hex": ["#RRGGBB", "#RRGGBB"],
+          "recommended_camera_angles": ["angle1", "angle2", "angle3"],
+          "recommended_lighting": "Best lighting type (e.g., soft, natural, studio, golden hour)",
+          "mood_suggestions": ["mood1", "mood2"],
+          "shot_ideas": [
+            "Shot idea 1: Description",
+            "Shot idea 2: Description",
+            "Shot idea 3: Description"
+          ],
+          "visual_style": "Suggested visual style (e.g., minimalist, luxury, energetic, natural)",
+          "background_suggestions": ["background1", "background2"],
+          "key_features_to_highlight": ["feature1", "feature2", "feature3"]
+        }}
+
+        Return ONLY valid JSON, no additional text.
+        """
+
+        # Prepare content with all images
+        content = [analysis_prompt]
+        for img in images:
+            content.append(img)
+
+        response = model.generate_content(content)
+        analysis_text = response.text.strip()
+
+        # Clean markdown code blocks
+        if analysis_text.startswith("```json"):
+            analysis_text = analysis_text[7:]
+        if analysis_text.startswith("```"):
+            analysis_text = analysis_text[3:]
+        if analysis_text.endswith("```"):
+            analysis_text = analysis_text[:-3]
+
+        analysis = json.loads(analysis_text.strip())
+        return analysis, None
+
+    except Exception as e:
+        return None, f"Analiz hatası: {str(e)}"
+
 def generate_storyboard(api_key, concept, shot_count=4):
     """
     Uses Gemini to generate a multi-shot storyboard from a concept
@@ -583,7 +641,7 @@ def save_ideas(ideas):
         st.error(f"Error saving ideas: {e}")
         return False
 
-def add_idea(title, description, tags, images=None, is_pinned=False, is_favorite=False):
+def add_idea(title, description, tags, images=None, is_pinned=False, is_favorite=False, analysis=None):
     """Add a new idea to the database"""
     ideas = load_ideas()
 
@@ -607,13 +665,14 @@ def add_idea(title, description, tags, images=None, is_pinned=False, is_favorite
         "images": saved_images,
         "is_pinned": is_pinned,
         "is_favorite": is_favorite,
+        "ai_analysis": analysis,  # Store AI analysis results
         "created_at": datetime.now().isoformat(),
         "updated_at": datetime.now().isoformat()
     }
 
     ideas.append(new_idea)
     save_ideas(ideas)
-    return True, "Idea saved successfully!"
+    return True, "Fikir başarıyla kaydedildi!"
 
 def update_idea(idea_id, **kwargs):
     """Update an existing idea"""
@@ -1071,7 +1130,9 @@ with t_ideas:
             idea_description = st.text_area("Açıklama *", placeholder="Fikrin, konseptin veya notlarını yaz...", height=100)
             idea_tags_input = st.text_input("Etiketler (virgülle ayır)", placeholder="örn: cyberpunk, neon, gece, reklam")
 
-            uploaded_images = st.file_uploader("Referans Görselleri Yükle", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
+            uploaded_images = st.file_uploader("📸 Referans Görselleri Yükle (Birden fazla seçebilirsin!)", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
+            if uploaded_images:
+                st.caption(f"✅ {len(uploaded_images)} görsel seçildi")
 
             col_pin, col_fav = st.columns(2)
             with col_pin:
@@ -1169,7 +1230,7 @@ with t_ideas:
                                 created_date = datetime.fromisoformat(idea['created_at']).strftime("%b %d, %Y")
                                 st.caption(f"📅 {created_date}")
 
-                                # Actions
+                                # Quick Actions
                                 col_actions = st.columns(3)
                                 with col_actions[0]:
                                     if st.button("📌", key=f"pin_{idea['id']}", help="Sabitle/Kaldır"):
@@ -1183,6 +1244,37 @@ with t_ideas:
                                     if st.button("🗑️", key=f"del_{idea['id']}", help="Sil"):
                                         delete_idea(idea['id'])
                                         st.rerun()
+
+                                # Main Actions
+                                if idea.get('images') and api_key:
+                                    if st.button("🔍 Görselleri Analiz Et", key=f"analyze_{idea['id']}", use_container_width=True):
+                                        with st.spinner("AI analiz yapıyor..."):
+                                            # Load images
+                                            pil_images = []
+                                            for img_path in idea['images']:
+                                                if os.path.exists(img_path):
+                                                    pil_images.append(Image.open(img_path))
+
+                                            if pil_images:
+                                                analysis, error = analyze_product_images(api_key, pil_images, idea['title'])
+                                                if analysis:
+                                                    update_idea(idea['id'], ai_analysis=analysis)
+                                                    st.success("✅ Analiz tamamlandı!")
+                                                    st.rerun()
+                                                else:
+                                                    st.error(error)
+
+                                if st.button("🎬 Storyboard Oluştur", key=f"storyboard_{idea['id']}", use_container_width=True):
+                                    # Store idea data in session state for storyboard tab
+                                    st.session_state['idea_for_storyboard'] = {
+                                        'title': idea['title'],
+                                        'description': idea['description'],
+                                        'tags': idea['tags'],
+                                        'images': idea['images'],
+                                        'analysis': idea.get('ai_analysis')
+                                    }
+                                    st.success("✅ Storyboard tab'ına geç!")
+                                    st.info("👉 Yukarıdan 'STORYBOARD' tab'ına tıkla")
 
                                 st.markdown("---")
 
@@ -1213,7 +1305,7 @@ with t_ideas:
                     created_date = datetime.fromisoformat(idea['created_at']).strftime("%d %B %Y, %H:%M")
                     st.caption(f"📅 Oluşturulma: {created_date}")
 
-                    # Actions
+                    # Quick Actions
                     col_act1, col_act2, col_act3 = st.columns(3)
                     with col_act1:
                         if st.button(f"📌 {'Sabitlemeyi Kaldır' if idea.get('is_pinned') else 'Sabitle'}", key=f"pin_list_{idea['id']}"):
@@ -1228,6 +1320,70 @@ with t_ideas:
                             if st.button("⚠️ Silmeyi Onayla?", key=f"confirm_del_{idea['id']}"):
                                 delete_idea(idea['id'])
                                 st.rerun()
+
+                    st.markdown("---")
+
+                    # Main Actions
+                    col_main1, col_main2 = st.columns(2)
+                    with col_main1:
+                        if idea.get('images') and api_key:
+                            if st.button("🔍 Görselleri Analiz Et", key=f"analyze_list_{idea['id']}", use_container_width=True):
+                                with st.spinner("AI analiz yapıyor..."):
+                                    pil_images = []
+                                    for img_path in idea['images']:
+                                        if os.path.exists(img_path):
+                                            pil_images.append(Image.open(img_path))
+
+                                    if pil_images:
+                                        analysis, error = analyze_product_images(api_key, pil_images, idea['title'])
+                                        if analysis:
+                                            update_idea(idea['id'], ai_analysis=analysis)
+                                            st.success("✅ Analiz tamamlandı!")
+                                            st.rerun()
+                                        else:
+                                            st.error(error)
+
+                    with col_main2:
+                        if st.button("🎬 Storyboard Oluştur", key=f"storyboard_list_{idea['id']}", use_container_width=True):
+                            st.session_state['idea_for_storyboard'] = {
+                                'title': idea['title'],
+                                'description': idea['description'],
+                                'tags': idea['tags'],
+                                'images': idea['images'],
+                                'analysis': idea.get('ai_analysis')
+                            }
+                            st.success("✅ Storyboard tab'ına geç!")
+                            st.info("👉 Yukarıdan 'STORYBOARD' tab'ına tıkla")
+
+                    # Show AI Analysis if exists
+                    if idea.get('ai_analysis'):
+                        st.markdown("---")
+                        st.markdown("### 🎨 AI Analiz Sonuçları")
+                        analysis = idea['ai_analysis']
+
+                        col_an1, col_an2 = st.columns(2)
+                        with col_an1:
+                            if analysis.get('product_summary'):
+                                st.markdown("**Ürün/Sahne:**")
+                                st.write(analysis['product_summary'])
+
+                            if analysis.get('color_palette'):
+                                st.markdown("**Renk Paleti:**")
+                                st.write(", ".join(analysis['color_palette']))
+
+                        with col_an2:
+                            if analysis.get('recommended_lighting'):
+                                st.markdown("**Önerilen Aydınlatma:**")
+                                st.write(analysis['recommended_lighting'])
+
+                            if analysis.get('visual_style'):
+                                st.markdown("**Görsel Stil:**")
+                                st.write(analysis['visual_style'])
+
+                        if analysis.get('shot_ideas'):
+                            st.markdown("**💡 Shot Fikirleri:**")
+                            for shot_idea in analysis['shot_ideas'][:3]:
+                                st.write(f"• {shot_idea}")
 
 # --- TAB 1: CINEMA STUDIO (YENİ GÖRSEL ARAYÜZ) ---
 with t_studio:
@@ -1382,9 +1538,106 @@ with t_studio:
 
 # --- TAB 2: STORYBOARD ---
 with t_board:
+    # Reference Images Section
+    with st.expander("📸 Referans Görselleri", expanded=False):
+        st.caption("Storyboard oluştururken referans görselleri buraya yükleyebilirsin")
+
+        reference_images = st.file_uploader(
+            "Referans görselleri yükle (birden fazla seçebilirsin)",
+            type=["png", "jpg", "jpeg"],
+            accept_multiple_files=True,
+            key="storyboard_references"
+        )
+
+        if reference_images:
+            st.success(f"✅ {len(reference_images)} görsel yüklendi")
+
+            # Display images in grid
+            cols_per_row = 4
+            for i in range(0, len(reference_images), cols_per_row):
+                cols = st.columns(cols_per_row)
+                for j, col in enumerate(cols):
+                    if i + j < len(reference_images):
+                        with col:
+                            img = Image.open(reference_images[i + j])
+                            st.image(img, use_container_width=True, caption=reference_images[i + j].name)
+
+            # Option to analyze references with AI
+            if api_key and st.button("🔍 Referansları Analiz Et (AI)", use_container_width=True):
+                with st.spinner("AI görselleri analiz ediyor..."):
+                    # Convert uploaded files to PIL Images
+                    pil_images = [Image.open(ref) for ref in reference_images]
+                    analysis, error = analyze_product_images(api_key, pil_images, "Storyboard references")
+
+                    if analysis:
+                        st.success("✅ Analiz tamamlandı!")
+
+                        # Display analysis results
+                        st.markdown("### 🎨 AI Analiz Sonuçları:")
+
+                        col_a1, col_a2 = st.columns(2)
+                        with col_a1:
+                            st.markdown("**Ürün/Sahne Özeti:**")
+                            st.write(analysis.get('product_summary', 'N/A'))
+
+                            st.markdown("**Renk Paleti:**")
+                            if analysis.get('color_palette'):
+                                st.write(", ".join(analysis['color_palette']))
+
+                            st.markdown("**Önerilen Aydınlatma:**")
+                            st.write(analysis.get('recommended_lighting', 'N/A'))
+
+                        with col_a2:
+                            st.markdown("**Önerilen Kamera Açıları:**")
+                            if analysis.get('recommended_camera_angles'):
+                                for angle in analysis['recommended_camera_angles']:
+                                    st.write(f"• {angle}")
+
+                            st.markdown("**Mood Önerileri:**")
+                            if analysis.get('mood_suggestions'):
+                                st.write(", ".join(analysis['mood_suggestions']))
+
+                        # Shot ideas from AI
+                        if analysis.get('shot_ideas'):
+                            st.markdown("**💡 AI Shot Fikirleri:**")
+                            for idea in analysis['shot_ideas']:
+                                st.write(f"• {idea}")
+                    else:
+                        st.error(error)
+
+        st.markdown("---")
+
+    # Check if idea was transferred from Ideas tab
+    transferred_idea = st.session_state.get('idea_for_storyboard')
+    if transferred_idea:
+        st.success(f"✅ '{transferred_idea['title']}' fikrini yükledin!")
+
+        if transferred_idea.get('images'):
+            st.info(f"📸 {len(transferred_idea['images'])} referans görseli var")
+
+        if transferred_idea.get('analysis'):
+            with st.expander("🎨 AI Analiz Sonuçları", expanded=True):
+                analysis = transferred_idea['analysis']
+                st.write(f"**Ürün/Sahne:** {analysis.get('product_summary', 'N/A')}")
+                st.write(f"**Önerilen Aydınlatma:** {analysis.get('recommended_lighting', 'N/A')}")
+                st.write(f"**Görsel Stil:** {analysis.get('visual_style', 'N/A')}")
+
+                if analysis.get('shot_ideas'):
+                    st.markdown("**💡 AI Shot Önerileri:**")
+                    for idea in analysis['shot_ideas'][:3]:
+                        st.write(f"• {idea}")
+
+        if st.button("❌ Fikri Temizle"):
+            del st.session_state['idea_for_storyboard']
+            st.rerun()
+
+        st.markdown("---")
+
     col1, col2 = st.columns([3, 1])
     with col1:
-        raw_idea = st.text_area("Fikir / Senaryo", height=100, placeholder="Karlı bir japon bahçesinde gülen buddha...")
+        # Auto-fill with idea description if transferred
+        default_text = transferred_idea['description'] if transferred_idea else ""
+        raw_idea = st.text_area("Fikir / Senaryo", height=100, value=default_text, placeholder="Karlı bir japon bahçesinde gülen buddha...")
     with col2:
         shot_count = st.slider("Sahne Sayısı", 2, 8, 4)
         if st.button("🎬 Generate Storyboard with AI", use_container_width=True):
