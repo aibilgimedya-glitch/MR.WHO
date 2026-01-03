@@ -1043,51 +1043,51 @@ st.title("🎬 MR.WHO Cinema Director")
 st.caption("✨ Directed By E.Yiğit Bildi")
 
 # TABS
-t_ideas, t_studio, t_board, t_video, t_equipment, t_sys = st.tabs(["💡 IDEAS & NOTES", "🎬 STUDIO GEAR", "🧠 STORYBOARD", "🎞️ VIDEO RENDER", "📚 EQUIPMENT GUIDE", "⚙️ SYSTEM"])
+t_ideas, t_studio, t_board, t_video, t_equipment, t_sys = st.tabs(["💡 FİKİRLER & NOTLAR", "🎬 STÜDYO", "🧠 STORYBOARD", "🎞️ VİDEO", "📚 EKİPMAN REHBERİ", "⚙️ SİSTEM"])
 
-# --- TAB 0: IDEAS & NOTES ---
+# --- TAB 0: FİKİRLER & NOTLAR ---
 with t_ideas:
-    st.markdown("### 💡 Project Ideas & Creative Notes")
-    st.caption("Capture inspiration, save references, organize your creative process")
+    st.markdown("### 💡 Proje Fikirleri & Yaratıcı Notlar")
+    st.caption("İlhamını yakala, referansları kaydet, yaratıcı sürecini organize et")
 
     # Action buttons
     col_act1, col_act2, col_act3 = st.columns([2, 1, 1])
     with col_act1:
-        if st.button("➕ New Idea", use_container_width=True):
+        if st.button("➕ Yeni Fikir", use_container_width=True):
             st.session_state['show_new_idea_form'] = True
     with col_act2:
-        search_query = st.text_input("🔍 Search", placeholder="Search ideas...", label_visibility="collapsed")
+        search_query = st.text_input("🔍 Ara", placeholder="Fikirlerde ara...", label_visibility="collapsed")
     with col_act3:
-        view_mode = st.selectbox("View", ["Grid", "List"], label_visibility="collapsed")
+        view_mode = st.selectbox("Görünüm", ["Kart", "Liste"], label_visibility="collapsed")
 
     st.markdown("---")
 
-    # New Idea Form
+    # Yeni Fikir Formu
     if st.session_state.get('show_new_idea_form', False):
         with st.form("new_idea_form"):
-            st.markdown("#### ✨ Create New Idea")
+            st.markdown("#### ✨ Yeni Fikir Oluştur")
 
-            idea_title = st.text_input("Title *", placeholder="e.g., Cyberpunk Night Scene")
-            idea_description = st.text_area("Description *", placeholder="Describe your idea, concept, or notes...", height=100)
-            idea_tags_input = st.text_input("Tags (separate with commas)", placeholder="e.g., cyberpunk, neon, night, commercial")
+            idea_title = st.text_input("Başlık *", placeholder="örn: Cyberpunk Gece Sahnesi")
+            idea_description = st.text_area("Açıklama *", placeholder="Fikrin, konseptin veya notlarını yaz...", height=100)
+            idea_tags_input = st.text_input("Etiketler (virgülle ayır)", placeholder="örn: cyberpunk, neon, gece, reklam")
 
-            uploaded_images = st.file_uploader("Upload Reference Images", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
+            uploaded_images = st.file_uploader("Referans Görselleri Yükle", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 
             col_pin, col_fav = st.columns(2)
             with col_pin:
-                is_pinned = st.checkbox("📌 Pin this idea")
+                is_pinned = st.checkbox("📌 Bu fikri sabitle")
             with col_fav:
-                is_favorite = st.checkbox("⭐ Mark as favorite")
+                is_favorite = st.checkbox("⭐ Favori olarak işaretle")
 
             col_submit, col_cancel = st.columns(2)
             with col_submit:
-                submit_idea = st.form_submit_button("💾 Save Idea", use_container_width=True)
+                submit_idea = st.form_submit_button("💾 Fikri Kaydet", use_container_width=True)
             with col_cancel:
-                cancel_idea = st.form_submit_button("❌ Cancel", use_container_width=True)
+                cancel_idea = st.form_submit_button("❌ İptal", use_container_width=True)
 
             if submit_idea:
                 if not idea_title or not idea_description:
-                    st.error("Please fill in title and description!")
+                    st.error("Lütfen başlık ve açıklama gir!")
                 else:
                     # Process tags
                     tags = [tag.strip() for tag in idea_tags_input.split(",") if tag.strip()]
@@ -1127,11 +1127,11 @@ with t_ideas:
     all_ideas.sort(key=lambda x: (not x.get('is_pinned', False), x.get('created_at', '')), reverse=True)
 
     if not all_ideas:
-        st.info("📝 No ideas yet. Click '➕ New Idea' to start capturing your creative concepts!")
+        st.info("📝 Henüz fikir yok. Yaratıcı fikirlerini kaydetmeye başlamak için '➕ Yeni Fikir' butonuna tıkla!")
     else:
-        st.markdown(f"**{len(all_ideas)} Ideas** {'📌 Showing pinned first' if any(i.get('is_pinned') for i in all_ideas) else ''}")
+        st.markdown(f"**{len(all_ideas)} Fikir** {'📌 Sabitlenmiş fikirler önce gösteriliyor' if any(i.get('is_pinned') for i in all_ideas) else ''}")
 
-        if view_mode == "Grid":
+        if view_mode == "Kart":
             # Grid View
             cols_per_row = 3
             for i in range(0, len(all_ideas), cols_per_row):
@@ -1172,15 +1172,15 @@ with t_ideas:
                                 # Actions
                                 col_actions = st.columns(3)
                                 with col_actions[0]:
-                                    if st.button("📌", key=f"pin_{idea['id']}", help="Pin/Unpin"):
+                                    if st.button("📌", key=f"pin_{idea['id']}", help="Sabitle/Kaldır"):
                                         toggle_pin(idea['id'])
                                         st.rerun()
                                 with col_actions[1]:
-                                    if st.button("⭐", key=f"fav_{idea['id']}", help="Favorite"):
+                                    if st.button("⭐", key=f"fav_{idea['id']}", help="Favorile"):
                                         toggle_favorite(idea['id'])
                                         st.rerun()
                                 with col_actions[2]:
-                                    if st.button("🗑️", key=f"del_{idea['id']}", help="Delete"):
+                                    if st.button("🗑️", key=f"del_{idea['id']}", help="Sil"):
                                         delete_idea(idea['id'])
                                         st.rerun()
 
@@ -1202,30 +1202,30 @@ with t_ideas:
                                     st.image(img_path, use_container_width=True)
 
                     # Description
-                    st.markdown(f"**Description:**")
+                    st.markdown(f"**Açıklama:**")
                     st.write(idea['description'])
 
                     # Tags
                     if idea.get('tags'):
-                        st.markdown(f"**Tags:** {', '.join(['#' + tag for tag in idea['tags']])}")
+                        st.markdown(f"**Etiketler:** {', '.join(['#' + tag for tag in idea['tags']])}")
 
                     # Metadata
-                    created_date = datetime.fromisoformat(idea['created_at']).strftime("%B %d, %Y at %H:%M")
-                    st.caption(f"📅 Created: {created_date}")
+                    created_date = datetime.fromisoformat(idea['created_at']).strftime("%d %B %Y, %H:%M")
+                    st.caption(f"📅 Oluşturulma: {created_date}")
 
                     # Actions
                     col_act1, col_act2, col_act3 = st.columns(3)
                     with col_act1:
-                        if st.button(f"📌 {'Unpin' if idea.get('is_pinned') else 'Pin'}", key=f"pin_list_{idea['id']}"):
+                        if st.button(f"📌 {'Sabitlemeyi Kaldır' if idea.get('is_pinned') else 'Sabitle'}", key=f"pin_list_{idea['id']}"):
                             toggle_pin(idea['id'])
                             st.rerun()
                     with col_act2:
-                        if st.button(f"⭐ {'Unfavorite' if idea.get('is_favorite') else 'Favorite'}", key=f"fav_list_{idea['id']}"):
+                        if st.button(f"⭐ {'Favoriden Çıkar' if idea.get('is_favorite') else 'Favorile'}", key=f"fav_list_{idea['id']}"):
                             toggle_favorite(idea['id'])
                             st.rerun()
                     with col_act3:
-                        if st.button("🗑️ Delete", key=f"del_list_{idea['id']}"):
-                            if st.button("⚠️ Confirm Delete?", key=f"confirm_del_{idea['id']}"):
+                        if st.button("🗑️ Sil", key=f"del_list_{idea['id']}"):
+                            if st.button("⚠️ Silmeyi Onayla?", key=f"confirm_del_{idea['id']}"):
                                 delete_idea(idea['id'])
                                 st.rerun()
 
