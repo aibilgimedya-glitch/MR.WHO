@@ -1102,9 +1102,455 @@ st.title("🎬 MR.WHO Cinema Director")
 st.caption("✨ Directed By E.Yiğit Bildi")
 
 # TABS
-t_ideas, t_studio, t_board, t_video, t_equipment, t_sys = st.tabs(["💡 FİKİRLER & NOTLAR", "🎬 STÜDYO", "🧠 STORYBOARD", "🎞️ VİDEO", "📚 EKİPMAN REHBERİ", "⚙️ SİSTEM"])
+t_guide, t_ideas, t_studio, t_board, t_video, t_equipment, t_sys = st.tabs(["📖 REHBER", "💡 FİKİRLER & NOTLAR", "🎬 STÜDYO", "🧠 STORYBOARD", "🎞️ VİDEO", "📚 EKİPMAN REHBERİ", "⚙️ SİSTEM"])
 
-# --- TAB 0: FİKİRLER & NOTLAR ---
+# --- TAB 0: REHBER (KULLANIM KILAVUZU) ---
+with t_guide:
+    st.markdown("# 📖 MR.WHO - Kullanım Rehberi")
+    st.caption("Sinematik video üretimi için profesyonel iş akışı")
+
+    st.markdown("---")
+
+    # Quick Navigation
+    guide_section = st.selectbox(
+        "Konuya git:",
+        ["🎯 Genel Bakış", "🔄 İş Akışı", "📱 Tab Açıklamaları", "💡 İpuçları & Püf Noktalar", "❓ Sık Sorulan Sorular"]
+    )
+
+    st.markdown("---")
+
+    if guide_section == "🎯 Genel Bakış":
+        st.markdown("## 🎯 MR.WHO Nedir?")
+        st.write("""
+        **MR.WHO Cinema Director**, yapay zeka destekli profesyonel video prodüksiyon aracıdır.
+        Ticari reklamlar, sosyal medya içerikleri ve sinematik projeler için tasarlanmıştır.
+        """)
+
+        col_feat1, col_feat2 = st.columns(2)
+        with col_feat1:
+            st.markdown("### ✨ Temel Özellikler")
+            st.markdown("""
+            - 💡 **Fikir Yönetimi:** Proje fikirlerini kaydet, organize et
+            - 🔍 **AI Görsel Analizi:** Referans görsellerini analiz et
+            - 🎬 **Storyboard Üretimi:** AI ile otomatik sahne oluşturma
+            - 🎨 **40+ Sinematik Seçenek:** Profesyonel görünüm
+            - 🎞️ **Video Queue Sistemi:** Toplu video üretimi
+            - 📱 **Her Yerden Erişim:** Mobil + Desktop
+            """)
+
+        with col_feat2:
+            st.markdown("### 🎯 Kimler İçin?")
+            st.markdown("""
+            - 🎬 **Video Yapımcıları:** Ticari reklam üretimi
+            - 🎨 **İçerik Üreticileri:** Sosyal medya içerikleri
+            - 🏢 **Ajanslar:** Müşteri projeleri
+            - 📱 **Freelancerlar:** Hızlı iş akışı
+            - 🎓 **Öğrenciler:** Sinema/medya eğitimi
+            """)
+
+        st.markdown("---")
+        st.markdown("### 🧠 Sistem Nasıl Çalışır?")
+        st.info("""
+        **1. FİKİR AŞAMASI:** Proje konseptini ve referans görsellerini kaydet
+
+        **2. ANALİZ AŞAMASI:** AI görselleri analiz eder, öneriler sunar
+
+        **3. STORYBOARD AŞAMASI:** AI sahne açıklamaları üretir (text)
+
+        **4. ÜRETİM AŞAMASI:** Text prompt'lardan video üretilir
+        """)
+
+    elif guide_section == "🔄 İş Akışı":
+        st.markdown("## 🔄 Adım Adım İş Akışı")
+
+        # Workflow diagram
+        st.markdown("### 📊 İş Akışı Şeması")
+        st.markdown("""
+        ```
+        1️⃣ FİKİR OLUŞTUR
+            ↓
+        [Proje bilgileri + Referans görselleri]
+            ↓
+        2️⃣ AI ANALİZ ET
+            ↓
+        [Renk paleti, açılar, ışık, shot önerileri]
+            ↓
+        3️⃣ STORYBOARD OLUŞTUR
+            ↓
+        [4-8 sahnelik text açıklamaları]
+            ↓
+        4️⃣ STÜDYO AYARLARI (Opsiyonel)
+            ↓
+        [Kamera, lens, ışık, renk ayarları]
+            ↓
+        5️⃣ VIDEO ÜRET
+            ↓
+        [Higgsfield/Veo/Kling ile video üretimi]
+            ↓
+        ✅ HAZIR!
+        ```
+        """)
+
+        st.markdown("---")
+
+        st.markdown("### 📝 Detaylı Adımlar")
+
+        with st.expander("1️⃣ FİKİR OLUŞTURMA", expanded=True):
+            st.markdown("""
+            **Nerede:** 💡 FİKİRLER & NOTLAR tab
+
+            **Ne Yapılır:**
+            - "➕ Yeni Fikir" butonuna tıkla
+            - Başlık yaz (Örn: "X Markası - Bebek Arabası Reklamı")
+            - Açıklama ekle (Hedef kitle, mood, sahne detayları)
+            - Etiketler ekle (#reklam, #ticari, vs.)
+            - **Referans görselleri yükle** (Ürün fotoğrafları)
+            - Sabitle/Favorile (Önemli projeler için)
+            - Kaydet!
+
+            **Önemli:** Referans görselleri buradan sonra AI tarafından analiz edilecek!
+            """)
+
+        with st.expander("2️⃣ AI ANALİZ"):
+            st.markdown("""
+            **Nerede:** 💡 FİKİRLER & NOTLAR tab (Fikir kartında)
+
+            **Ne Yapılır:**
+            - Fikir kartında "🔍 Görselleri Analiz Et" butonuna tıkla
+            - AI Gemini Vision ile görselleri analiz eder
+            - **10-20 saniye** bekle
+
+            **AI Ne Yapar:**
+            - ✅ Renk paletini çıkarır (Hex kodlarıyla)
+            - ✅ Önerilen kamera açılarını belirler
+            - ✅ En uygun aydınlatma tipini önerir
+            - ✅ Mood önerileri verir
+            - ✅ Shot fikirleri üretir (3-5 adet)
+            - ✅ Görsel stil önerir (minimal, luxury, energetic...)
+
+            **Sonuç:** Tüm bu bilgiler fikir ile birlikte kaydedilir!
+            """)
+
+        with st.expander("3️⃣ STORYBOARD OLUŞTURMA"):
+            st.markdown("""
+            **Nerede:** 💡 FİKİRLER & NOTLAR → 🧠 STORYBOARD
+
+            **Yöntem 1: Fikirden Direkt Geçiş**
+            - Fikir kartında "🎬 Storyboard Oluştur" butonuna tıkla
+            - STORYBOARD tab'ına geç
+            - Açıklama otomatik dolu!
+            - AI analiz sonuçları görünüyor
+            - "🎬 Generate Storyboard with AI" tıkla
+
+            **Yöntem 2: Manuel Oluşturma**
+            - Direkt STORYBOARD tab'ına git
+            - Fikir/senaryo yaz
+            - İstersen referans görselleri yükle
+            - "🎬 Generate Storyboard with AI" tıkla
+
+            **AI Ne Üretir:**
+            - 2-8 sahne (senin seçtiğin kadar)
+            - Her sahne için:
+              * Shot tipi (Wide, Medium, Close-up...)
+              * Detaylı açıklama
+              * Action (ne oluyor)
+              * Mood (duygusal ton)
+              * Önerilen hareket (Static, Push In...)
+              * Önerilen aydınlatma
+
+            **Önemli:** Burada üretilen şey **TEXT** açıklamalardır, video değil!
+            """)
+
+        with st.expander("4️⃣ STÜDYO AYARLARI (Opsiyonel)"):
+            st.markdown("""
+            **Nerede:** 🎬 STÜDYO tab
+
+            **Ne Yapılır:**
+            Daha detaylı sinematik ayarlar yapmak istersen:
+
+            **A) Style Presets (Hızlı):**
+            - 8 hazır stil kombinasyonu
+            - Tek tıkla uygula
+            - Örnekler: Cyberpunk Night, Film Noir, Natural Wonder...
+
+            **B) Manuel Ayarlar (Detaylı):**
+            - **Kamera:** Arri Alexa, Sony Venice, Red...
+            - **Lens:** 35mm, 50mm, 85mm...
+            - **Lighting:** Golden Hour, Blue Hour, Neon Night...
+            - **Color Grading:** Kodak, Fuji, Teal & Orange...
+            - **Atmosphere:** Clear, Fog, Rain, God Rays...
+            - **Composition:** Rule of Thirds, Symmetry...
+            - **Movement:** Static, Push In, Orbit...
+
+            **Sonuç:** Bu ayarlar prompt'a dahil edilir, daha profesyonel görünüm!
+            """)
+
+        with st.expander("5️⃣ VIDEO ÜRETİMİ"):
+            st.markdown("""
+            **Nerede:** 🎞️ VİDEO tab
+
+            **Ne Yapılır:**
+
+            **A) Storyboard'dan Toplu Ekleme:**
+            - STORYBOARD tab'ında "🎬 Add All to Queue" tıkla
+            - Tüm sahneler queue'ya eklenir
+
+            **B) Manuel Ekleme:**
+            - VİDEO tab'ında prompt yaz
+            - Ayarları seç
+            - "Add to Queue" tıkla
+
+            **Video Ayarları:**
+            - Aspect Ratio: 16:9, 9:16, 1:1
+            - Duration: 2s, 4s, 6s
+            - FPS: 24, 30, 60
+            - Motion Strength: 1-10
+
+            **API Seçimi:**
+            - Higgsfield
+            - Veo 3 (Google)
+            - Kling AI
+
+            **Üretim:**
+            - "Generate All" veya tek tek üret
+            - API key gerekli!
+            - Her video 30-60 saniye sürer
+
+            **Önemli:** Video üretimi sırasında **TEXT PROMPT** kullanılır, referans görselleri değil!
+            """)
+
+        st.markdown("---")
+        st.success("✅ Tam iş akışını takip ettiğinde profesyonel sonuçlar elde edersin!")
+
+    elif guide_section == "📱 Tab Açıklamaları":
+        st.markdown("## 📱 Her Tab Ne İşe Yarar?")
+
+        tab_info = {
+            "📖 REHBER": {
+                "desc": "Bu tab! Kullanım kılavuzu ve iş akışı açıklamaları",
+                "use": "İlk kez kullanıyorsan buradan başla"
+            },
+            "💡 FİKİRLER & NOTLAR": {
+                "desc": "Proje fikirlerini kaydet, referans görselleri yükle, AI analizi yap",
+                "use": "Her yeni proje için ilk adım burası"
+            },
+            "🎬 STÜDYO": {
+                "desc": "Sinematik ayarlar: Kamera, lens, ışık, renk, hareket",
+                "use": "Daha profesyonel/detaylı ayarlar istediğinde"
+            },
+            "🧠 STORYBOARD": {
+                "desc": "AI ile sahne açıklamaları üret, referans görselleri analiz et",
+                "use": "Fikri sahne sahne planlamak için"
+            },
+            "🎞️ VİDEO": {
+                "desc": "Video üretim queue'su, API seçimi, toplu üretim",
+                "use": "Final video üretimi için"
+            },
+            "📚 EKİPMAN REHBERİ": {
+                "desc": "Kamera ve lens bilgileri, ne zaman hangisini kullanmalı",
+                "use": "Ekipman hakkında bilgi edinmek için"
+            },
+            "⚙️ SİSTEM": {
+                "desc": "Proje export/import, API ayarları, sistem bilgileri",
+                "use": "Projeyi kaydetmek veya paylaşmak için"
+            }
+        }
+
+        for tab_name, info in tab_info.items():
+            with st.expander(f"{tab_name}", expanded=False):
+                st.markdown(f"**Ne İşe Yarar:** {info['desc']}")
+                st.markdown(f"**Ne Zaman Kullan:** {info['use']}")
+
+    elif guide_section == "💡 İpuçları & Püf Noktalar":
+        st.markdown("## 💡 İpuçları & Püf Noktalar")
+
+        with st.expander("🎨 Daha İyi Prompt Yazma"):
+            st.markdown("""
+            **İyi Prompt Özellikleri:**
+            - ✅ Detaylı ama özlü
+            - ✅ Duygu/mood belirt (joyful, dramatic, peaceful)
+            - ✅ Teknik terimler kullan (cinematic, 4K, shallow depth of field)
+            - ✅ Renkleri belirt (warm tones, blue palette)
+            - ✅ Işık tipini ekle (golden hour, soft lighting)
+
+            **Örnek Kötü Prompt:**
+            "Bebek arabası"
+
+            **Örnek İyi Prompt:**
+            "Modern premium baby stroller in sunny park, golden hour lighting,
+            blue and white colors, cinematic 4K, soft focus, happy family atmosphere,
+            professional commercial quality"
+            """)
+
+        with st.expander("🔍 Referans Görselleri İpuçları"):
+            st.markdown("""
+            **En İyi Sonuç İçin:**
+            - ✅ 2-4 kaliteli görsel yükle (fazla değil)
+            - ✅ Farklı açılardan fotoğraflar (genel, detay, kullanımda)
+            - ✅ İyi ışıklı, net fotoğraflar
+            - ✅ Ürünün renk ve stil özellikleri belli olsun
+
+            **Kaçın:**
+            - ❌ 10+ görsel (AI karışır)
+            - ❌ Çok düşük çözünürlük
+            - ❌ Karanlık/bulanık fotoğraflar
+            """)
+
+        with st.expander("⚡ Hızlı İş Akışı"):
+            st.markdown("""
+            **5 Dakikada Storyboard:**
+            1. Fikir oluştur (2 dk)
+            2. Görselleri analiz et (30 sn)
+            3. Storyboard'a geç (5 sn)
+            4. AI üret (30 sn)
+            5. İncele ve düzenle (1.5 dk)
+
+            **Toplu Üretim:**
+            - Birden fazla fikir oluştur
+            - Hepsini analiz et
+            - Storyboard'ları toplu üret
+            - Queue'ya ekle ve hepsini birden üret
+            """)
+
+        with st.expander("🎯 Ticari Proje İpuçları"):
+            st.markdown("""
+            **Müşteri İşi İçin:**
+            - Proje adını açıklayıcı yap (Marka + Ürün + Tip)
+            - Etiketleri kullan (#müşteri-adı, #proje-tipi)
+            - Önemli projeleri sabitle 📌
+            - AI analizini mutlaka kullan
+            - Storyboard'u müşteriye göster, onay al
+            - Sonra video üretimine geç
+
+            **Varyasyon Üretme:**
+            - Aynı fikri 2-3 farklı mood ile dene
+            - Storyboard'da açıklamayı değiştir
+            - "Dramatic version", "Joyful version", "Minimal version"
+            """)
+
+    elif guide_section == "❓ Sık Sorulan Sorular":
+        st.markdown("## ❓ Sık Sorulan Sorular")
+
+        with st.expander("❓ Referans görselleri video üretiminde kullanılıyor mu?"):
+            st.markdown("""
+            **HAYIR!** Bu yaygın bir karışıklık.
+
+            **Referans Görselleri:**
+            - Senin ve AI'nın **anlaması** için
+            - AI bunları **analiz eder** ve öneriler üretir
+            - Bu öneriler **TEXT PROMPT'a** dönüşür
+
+            **Video Üretimi:**
+            - **TEXT PROMPT** kullanılır
+            - Görseller değil, açıklamalar gönderilir
+            - API text'ten video üretir
+
+            **Örnek:**
+            ```
+            Referans: Bebek arabası fotoğrafı
+                ↓ (AI analiz eder)
+            Sonuç: "Blue-white, modern, 45° angle"
+                ↓ (Prompt'a dahil edilir)
+            Prompt: "Modern blue baby stroller, 45° angle, 4K..."
+                ↓ (API'ye gönderilir)
+            Video: AI text'ten üretir
+            ```
+            """)
+
+        with st.expander("❓ Hangi video API'sini kullanmalıyım?"):
+            st.markdown("""
+            **Higgsfield:**
+            - Hızlı üretim
+            - İyi kalite
+            - Uygun fiyat
+
+            **Veo 3 (Google):**
+            - En kaliteli
+            - Daha gerçekçi
+            - Daha yavaş
+
+            **Kling AI:**
+            - Hızlı
+            - İyi hareket kalitesi
+            - Orta fiyat
+
+            **Öneri:** Hepsini dene, hangisi işine yarıyorsa onu kullan!
+            """)
+
+        with st.expander("❓ Gemini API Key nereden alırım?"):
+            st.markdown("""
+            **Adım Adım:**
+            1. https://aistudio.google.com/app/apikey adresine git
+            2. Google hesabınla giriş yap
+            3. "Create API Key" butonuna tıkla
+            4. API key'i kopyala
+            5. MR.WHO'da sidebar'a yapıştır
+
+            **Ücretsiz mi?**
+            - Evet! Google AI Studio ücretsiz tier var
+            - Günlük kullanım limiti var
+            - Yeterli olur çoğu kullanım için
+            """)
+
+        with st.expander("❓ Fikirleri nasıl organize ederim?"):
+            st.markdown("""
+            **Etiket Sistemi Kullan:**
+            - Her fikre anlamlı etiketler (#müşteri, #proje-tipi)
+            - Arama ile filtrele
+            - Pin önemli projeleri
+            - Favorite en çok kullandıklarını
+
+            **İsimlendirme:**
+            - Başlık: "Marka - Ürün - Tip"
+            - Örnek: "X Markası - Bebek Arabası - Instagram Reklam"
+
+            **Grid vs Liste:**
+            - Grid: Hızlı görsel tarama
+            - Liste: Detaylı inceleme
+            """)
+
+        with st.expander("❓ Mobilde de kullanabilir miyim?"):
+            st.markdown("""
+            **EVET!** Tam responsive.
+
+            **Mobil Kullanım:**
+            - https://mrwho-cinema.streamlit.app adresini aç
+            - Tüm özellikler çalışır
+            - Fikir ekleyebilirsin
+            - Görsel yükleyebilirsin
+            - AI analiz yapabilirsin
+            - Storyboard üretebilirsin
+
+            **İpucu:**
+            - Mobilde fikir topla (screenshot'lar)
+            - PC'de detaylı iş yap
+            - Her ikisinde de aynı veriler!
+            """)
+
+        with st.expander("❓ Verilerim kaybolur mu?"):
+            st.markdown("""
+            **Local Kullanım:**
+            - ideas_database.json dosyasında
+            - Görseller uploads/ideas/ klasöründe
+            - Bilgisayarında kayıtlı
+            - Backup almayı unutma!
+
+            **Online Kullanım (Streamlit Cloud):**
+            - Session bazlı
+            - Tarayıcı kapanınca sıfırlanabilir
+            - Önemli projeleri Export et (SİSTEM tab)
+            - JSON olarak indir, sakla
+
+            **Öneri:**
+            - Önemli projeleri export et
+            - JSON'ları bilgisayarında tut
+            - Gerektiğinde import et
+            """)
+
+    st.markdown("---")
+    st.success("💡 Başka sorun varsa, her zaman bu rehbere dönebilirsin!")
+
+# --- TAB 1: FİKİRLER & NOTLAR ---
 with t_ideas:
     st.markdown("### 💡 Proje Fikirleri & Yaratıcı Notlar")
     st.caption("İlhamını yakala, referansları kaydet, yaratıcı sürecini organize et")
