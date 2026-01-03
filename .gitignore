@@ -38,3 +38,7 @@ credentials.json
 *.log
 *.tmp
 /tmp/
+
+# User uploads and data
+uploads/
+ideas_database.json

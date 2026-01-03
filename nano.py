@@ -130,7 +130,11 @@ defaults = {
     'selected_shot_index': 0,
     # Batch Generation Queue
     'generation_queue': [],
-    'queue_status': {}
+    'queue_status': {},
+    # Ideas & Notes System
+    'ideas': [],
+    'ideas_search': "",
+    'ideas_filter_tags': []
 }
 for k, v in defaults.items():
     if k not in st.session_state: st.session_state[k] = v
@@ -548,6 +552,142 @@ def import_project(json_data):
     except Exception as e:
         return False, f"Import error: {str(e)}"
 
+# --- IDEAS & NOTES SYSTEM ---
+import os
+import base64
+from pathlib import Path
+
+# Create uploads directory if it doesn't exist
+UPLOADS_DIR = Path("uploads/ideas")
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+IDEAS_JSON_PATH = "ideas_database.json"
+
+def load_ideas():
+    """Load ideas from JSON file"""
+    try:
+        if os.path.exists(IDEAS_JSON_PATH):
+            with open(IDEAS_JSON_PATH, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return []
+    except Exception as e:
+        st.error(f"Error loading ideas: {e}")
+        return []
+
+def save_ideas(ideas):
+    """Save ideas to JSON file"""
+    try:
+        with open(IDEAS_JSON_PATH, 'w', encoding='utf-8') as f:
+            json.dump(ideas, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception as e:
+        st.error(f"Error saving ideas: {e}")
+        return False
+
+def add_idea(title, description, tags, images=None, is_pinned=False, is_favorite=False):
+    """Add a new idea to the database"""
+    ideas = load_ideas()
+
+    # Generate unique ID
+    idea_id = f"idea_{int(time.time())}_{len(ideas)}"
+
+    # Save uploaded images
+    saved_images = []
+    if images:
+        for idx, img in enumerate(images):
+            img_filename = f"{idea_id}_{idx}.png"
+            img_path = UPLOADS_DIR / img_filename
+            img.save(img_path)
+            saved_images.append(str(img_path))
+
+    new_idea = {
+        "id": idea_id,
+        "title": title,
+        "description": description,
+        "tags": tags,
+        "images": saved_images,
+        "is_pinned": is_pinned,
+        "is_favorite": is_favorite,
+        "created_at": datetime.now().isoformat(),
+        "updated_at": datetime.now().isoformat()
+    }
+
+    ideas.append(new_idea)
+    save_ideas(ideas)
+    return True, "Idea saved successfully!"
+
+def update_idea(idea_id, **kwargs):
+    """Update an existing idea"""
+    ideas = load_ideas()
+    for idea in ideas:
+        if idea['id'] == idea_id:
+            idea.update(kwargs)
+            idea['updated_at'] = datetime.now().isoformat()
+            save_ideas(ideas)
+            return True, "Idea updated!"
+    return False, "Idea not found"
+
+def delete_idea(idea_id):
+    """Delete an idea and its images"""
+    ideas = load_ideas()
+    for idx, idea in enumerate(ideas):
+        if idea['id'] == idea_id:
+            # Delete associated images
+            for img_path in idea.get('images', []):
+                try:
+                    if os.path.exists(img_path):
+                        os.remove(img_path)
+                except:
+                    pass
+            ideas.pop(idx)
+            save_ideas(ideas)
+            return True, "Idea deleted!"
+    return False, "Idea not found"
+
+def toggle_pin(idea_id):
+    """Toggle pin status of an idea"""
+    ideas = load_ideas()
+    for idea in ideas:
+        if idea['id'] == idea_id:
+            idea['is_pinned'] = not idea.get('is_pinned', False)
+            save_ideas(ideas)
+            return True
+    return False
+
+def toggle_favorite(idea_id):
+    """Toggle favorite status of an idea"""
+    ideas = load_ideas()
+    for idea in ideas:
+        if idea['id'] == idea_id:
+            idea['is_favorite'] = not idea.get('is_favorite', False)
+            save_ideas(ideas)
+            return True
+    return False
+
+def search_ideas(query="", filter_tags=None):
+    """Search and filter ideas"""
+    ideas = load_ideas()
+
+    if not query and not filter_tags:
+        return ideas
+
+    filtered = []
+    for idea in ideas:
+        # Search in title and description
+        if query:
+            query_lower = query.lower()
+            if query_lower not in idea['title'].lower() and query_lower not in idea['description'].lower():
+                continue
+
+        # Filter by tags
+        if filter_tags:
+            idea_tags = [tag.lower() for tag in idea.get('tags', [])]
+            if not any(ft.lower() in idea_tags for ft in filter_tags):
+                continue
+
+        filtered.append(idea)
+
+    return filtered
+
 # --- VIDEO API INTEGRATION INFRASTRUCTURE ---
 VIDEO_API_PROVIDERS = {
     "Higgsfield": {
@@ -903,7 +1043,191 @@ st.title("🎬 MR.WHO Cinema Director")
 st.caption("✨ Directed By E.Yiğit Bildi")
 
 # TABS
-t_studio, t_board, t_video, t_equipment, t_sys = st.tabs(["🎬 STUDIO GEAR", "🧠 STORYBOARD", "🎞️ VIDEO RENDER", "📚 EQUIPMENT GUIDE", "⚙️ SYSTEM"])
+t_ideas, t_studio, t_board, t_video, t_equipment, t_sys = st.tabs(["💡 IDEAS & NOTES", "🎬 STUDIO GEAR", "🧠 STORYBOARD", "🎞️ VIDEO RENDER", "📚 EQUIPMENT GUIDE", "⚙️ SYSTEM"])
+
+# --- TAB 0: IDEAS & NOTES ---
+with t_ideas:
+    st.markdown("### 💡 Project Ideas & Creative Notes")
+    st.caption("Capture inspiration, save references, organize your creative process")
+
+    # Action buttons
+    col_act1, col_act2, col_act3 = st.columns([2, 1, 1])
+    with col_act1:
+        if st.button("➕ New Idea", use_container_width=True):
+            st.session_state['show_new_idea_form'] = True
+    with col_act2:
+        search_query = st.text_input("🔍 Search", placeholder="Search ideas...", label_visibility="collapsed")
+    with col_act3:
+        view_mode = st.selectbox("View", ["Grid", "List"], label_visibility="collapsed")
+
+    st.markdown("---")
+
+    # New Idea Form
+    if st.session_state.get('show_new_idea_form', False):
+        with st.form("new_idea_form"):
+            st.markdown("#### ✨ Create New Idea")
+
+            idea_title = st.text_input("Title *", placeholder="e.g., Cyberpunk Night Scene")
+            idea_description = st.text_area("Description *", placeholder="Describe your idea, concept, or notes...", height=100)
+            idea_tags_input = st.text_input("Tags (separate with commas)", placeholder="e.g., cyberpunk, neon, night, commercial")
+
+            uploaded_images = st.file_uploader("Upload Reference Images", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
+
+            col_pin, col_fav = st.columns(2)
+            with col_pin:
+                is_pinned = st.checkbox("📌 Pin this idea")
+            with col_fav:
+                is_favorite = st.checkbox("⭐ Mark as favorite")
+
+            col_submit, col_cancel = st.columns(2)
+            with col_submit:
+                submit_idea = st.form_submit_button("💾 Save Idea", use_container_width=True)
+            with col_cancel:
+                cancel_idea = st.form_submit_button("❌ Cancel", use_container_width=True)
+
+            if submit_idea:
+                if not idea_title or not idea_description:
+                    st.error("Please fill in title and description!")
+                else:
+                    # Process tags
+                    tags = [tag.strip() for tag in idea_tags_input.split(",") if tag.strip()]
+
+                    # Process images
+                    images_to_save = []
+                    if uploaded_images:
+                        for uploaded_file in uploaded_images:
+                            images_to_save.append(Image.open(uploaded_file))
+
+                    # Save idea
+                    success, message = add_idea(
+                        title=idea_title,
+                        description=idea_description,
+                        tags=tags,
+                        images=images_to_save,
+                        is_pinned=is_pinned,
+                        is_favorite=is_favorite
+                    )
+
+                    if success:
+                        st.success(message)
+                        st.session_state['show_new_idea_form'] = False
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error(message)
+
+            if cancel_idea:
+                st.session_state['show_new_idea_form'] = False
+                st.rerun()
+
+    # Display Ideas
+    all_ideas = search_ideas(query=search_query if search_query else "")
+
+    # Sort: Pinned first, then by date
+    all_ideas.sort(key=lambda x: (not x.get('is_pinned', False), x.get('created_at', '')), reverse=True)
+
+    if not all_ideas:
+        st.info("📝 No ideas yet. Click '➕ New Idea' to start capturing your creative concepts!")
+    else:
+        st.markdown(f"**{len(all_ideas)} Ideas** {'📌 Showing pinned first' if any(i.get('is_pinned') for i in all_ideas) else ''}")
+
+        if view_mode == "Grid":
+            # Grid View
+            cols_per_row = 3
+            for i in range(0, len(all_ideas), cols_per_row):
+                cols = st.columns(cols_per_row)
+                for j, col in enumerate(cols):
+                    if i + j < len(all_ideas):
+                        idea = all_ideas[i + j]
+                        with col:
+                            # Idea Card
+                            pin_icon = "📌 " if idea.get('is_pinned') else ""
+                            fav_icon = "⭐ " if idea.get('is_favorite') else ""
+
+                            with st.container():
+                                st.markdown(f"**{pin_icon}{fav_icon}{idea['title']}**")
+
+                                # Show first image if available
+                                if idea.get('images') and len(idea['images']) > 0:
+                                    try:
+                                        img_path = idea['images'][0]
+                                        if os.path.exists(img_path):
+                                            st.image(img_path, use_container_width=True)
+                                    except:
+                                        pass
+
+                                # Description (truncated)
+                                desc_preview = idea['description'][:100] + "..." if len(idea['description']) > 100 else idea['description']
+                                st.caption(desc_preview)
+
+                                # Tags
+                                if idea.get('tags'):
+                                    tags_str = " ".join([f"#{tag}" for tag in idea['tags'][:3]])
+                                    st.caption(tags_str)
+
+                                # Date
+                                created_date = datetime.fromisoformat(idea['created_at']).strftime("%b %d, %Y")
+                                st.caption(f"📅 {created_date}")
+
+                                # Actions
+                                col_actions = st.columns(3)
+                                with col_actions[0]:
+                                    if st.button("📌", key=f"pin_{idea['id']}", help="Pin/Unpin"):
+                                        toggle_pin(idea['id'])
+                                        st.rerun()
+                                with col_actions[1]:
+                                    if st.button("⭐", key=f"fav_{idea['id']}", help="Favorite"):
+                                        toggle_favorite(idea['id'])
+                                        st.rerun()
+                                with col_actions[2]:
+                                    if st.button("🗑️", key=f"del_{idea['id']}", help="Delete"):
+                                        delete_idea(idea['id'])
+                                        st.rerun()
+
+                                st.markdown("---")
+
+        else:
+            # List View
+            for idea in all_ideas:
+                pin_icon = "📌 " if idea.get('is_pinned') else ""
+                fav_icon = "⭐ " if idea.get('is_favorite') else ""
+
+                with st.expander(f"{pin_icon}{fav_icon}{idea['title']}", expanded=False):
+                    # Images
+                    if idea.get('images'):
+                        img_cols = st.columns(min(len(idea['images']), 4))
+                        for idx, img_path in enumerate(idea['images'][:4]):
+                            with img_cols[idx]:
+                                if os.path.exists(img_path):
+                                    st.image(img_path, use_container_width=True)
+
+                    # Description
+                    st.markdown(f"**Description:**")
+                    st.write(idea['description'])
+
+                    # Tags
+                    if idea.get('tags'):
+                        st.markdown(f"**Tags:** {', '.join(['#' + tag for tag in idea['tags']])}")
+
+                    # Metadata
+                    created_date = datetime.fromisoformat(idea['created_at']).strftime("%B %d, %Y at %H:%M")
+                    st.caption(f"📅 Created: {created_date}")
+
+                    # Actions
+                    col_act1, col_act2, col_act3 = st.columns(3)
+                    with col_act1:
+                        if st.button(f"📌 {'Unpin' if idea.get('is_pinned') else 'Pin'}", key=f"pin_list_{idea['id']}"):
+                            toggle_pin(idea['id'])
+                            st.rerun()
+                    with col_act2:
+                        if st.button(f"⭐ {'Unfavorite' if idea.get('is_favorite') else 'Favorite'}", key=f"fav_list_{idea['id']}"):
+                            toggle_favorite(idea['id'])
+                            st.rerun()
+                    with col_act3:
+                        if st.button("🗑️ Delete", key=f"del_list_{idea['id']}"):
+                            if st.button("⚠️ Confirm Delete?", key=f"confirm_del_{idea['id']}"):
+                                delete_idea(idea['id'])
+                                st.rerun()
 
 # --- TAB 1: CINEMA STUDIO (YENİ GÖRSEL ARAYÜZ) ---
 with t_studio:
