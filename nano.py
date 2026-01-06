@@ -3395,11 +3395,16 @@ with t_image:
         }
     ]
 
-    # Initialize selected angles in session state
-    if 'selected_angles' not in st.session_state:
-        st.session_state['selected_angles'] = []
-
     # Visual Storyboard Grid - 4x2 Cards with Visual Previews
+    st.markdown("""
+    <div style='background: rgba(0, 217, 255, 0.1); padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 20px;'>
+        <p style='color: #00d9ff; font-size: 0.9em; margin: 0;'>
+            💡 Add your description below → Click <strong>ENHANCE WITH AI</strong> → Get 8 professional prompts automatically!
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Visual Storyboard Grid - Cards Only (No Selection)
     st.markdown("""
         <style>
         /* Storyboard Card Styling - AI Preneur Style */
@@ -3495,17 +3500,12 @@ with t_image:
     card_gradients = ['card-wide', 'card-medium', 'card-closeup', 'card-extreme',
                      'card-ots', 'card-low', 'card-high', 'card-dutch']
 
-    # Row 1: First 4 angles
+    # Row 1: First 4 angles - Display Only (No Selection)
     for i, angle in enumerate(angle_definitions[:4]):
         with grid_row1[i]:
-            is_selected = angle['name'] in st.session_state['selected_angles']
-            card_class = "storyboard-card-selected" if is_selected else ""
-            selected_badge = '<div class="card-selected-badge">✓ SELECTED</div>' if is_selected else ''
-
             # Create visual card with gradient background
             st.markdown(f"""
-            <div class="storyboard-card {card_class}">
-                {selected_badge}
+            <div class="storyboard-card">
                 <div class="card-visual">
                     <div class="card-visual-bg {card_gradients[i]}"></div>
                     <div class="card-visual-icon">{angle['emoji']}</div>
@@ -3517,30 +3517,12 @@ with t_image:
             </div>
             """, unsafe_allow_html=True)
 
-            # Toggle button below card
-            if st.button(
-                "✓ Selected" if is_selected else "○ Select",
-                key=f"angle_toggle_{i}",
-                use_container_width=True,
-                type="primary" if is_selected else "secondary"
-            ):
-                if is_selected:
-                    st.session_state['selected_angles'].remove(angle['name'])
-                else:
-                    st.session_state['selected_angles'].append(angle['name'])
-                st.rerun()
-
-    # Row 2: Last 4 angles
+    # Row 2: Last 4 angles - Display Only (No Selection)
     for i, angle in enumerate(angle_definitions[4:], start=4):
         with grid_row2[i-4]:
-            is_selected = angle['name'] in st.session_state['selected_angles']
-            card_class = "storyboard-card-selected" if is_selected else ""
-            selected_badge = '<div class="card-selected-badge">✓ SELECTED</div>' if is_selected else ''
-
             # Create visual card with gradient background
             st.markdown(f"""
-            <div class="storyboard-card {card_class}">
-                {selected_badge}
+            <div class="storyboard-card">
                 <div class="card-visual">
                     <div class="card-visual-bg {card_gradients[i]}"></div>
                     <div class="card-visual-icon">{angle['emoji']}</div>
@@ -3551,19 +3533,6 @@ with t_image:
                 </div>
             </div>
             """, unsafe_allow_html=True)
-
-            # Toggle button below card
-            if st.button(
-                "✓ Selected" if is_selected else "○ Select",
-                key=f"angle_toggle_{i}",
-                use_container_width=True,
-                type="primary" if is_selected else "secondary"
-            ):
-                if is_selected:
-                    st.session_state['selected_angles'].remove(angle['name'])
-                else:
-                    st.session_state['selected_angles'].append(angle['name'])
-                st.rerun()
 
     st.markdown("---")
 
@@ -3654,7 +3623,17 @@ Enhanced description:"""
 
                             # Store enhanced description
                             st.session_state['enhanced_character_desc'] = enhanced_text
-                            st.success("✅ Description enhanced by AI!")
+
+                            # AUTO-GENERATE prompts for ALL 8 angles immediately
+                            camera_info = f"shot on {selected_camera['name']}, {selected_lens['name']} lens, {selected_lens['char']}"
+                            full_desc = f"{enhanced_text}, {camera_info}"
+
+                            st.session_state['generated_angle_prompts'] = {}
+                            for angle in angle_definitions:
+                                prompt = angle['prompt_template'].replace("{character_desc}", full_desc)
+                                st.session_state['generated_angle_prompts'][angle['name']] = prompt
+
+                            st.success(f"✅ AI enhanced description + Generated {len(st.session_state['generated_angle_prompts'])} professional prompts!")
                             st.rerun()
 
                     except Exception as e:
@@ -3665,38 +3644,11 @@ Enhanced description:"""
         st.markdown("#### 🤖 AI Enhanced Description")
         st.info(st.session_state['enhanced_character_desc'])
 
-        if st.button("❌ Clear Enhanced Version", key="clear_enhanced"):
+        if st.button("🔄 Reset & Start Over", key="clear_enhanced"):
             del st.session_state['enhanced_character_desc']
+            if 'generated_angle_prompts' in st.session_state:
+                del st.session_state['generated_angle_prompts']
             st.rerun()
-
-    st.markdown("---")
-
-    # Generate Prompts Button
-    gen_col1, gen_col2, gen_col3 = st.columns([1, 1, 1])
-    with gen_col2:
-        if st.button("🎬 GENERATE PROMPTS", use_container_width=True, type="primary", key="gen_prompts_btn"):
-            if not character_desc:
-                st.error("⚠️ Please enter a character description first!")
-            elif len(st.session_state['selected_angles']) == 0:
-                st.error("⚠️ Please select at least one camera angle!")
-            else:
-                # Use enhanced description if available, otherwise use original
-                final_desc = st.session_state.get('enhanced_character_desc', character_desc)
-
-                # Add camera and lens info to description
-                camera_info = f"shot on {selected_camera['name']}, {selected_lens['name']} lens, {selected_lens['char']}"
-                full_desc = f"{final_desc}, {camera_info}"
-
-                st.session_state['generated_angle_prompts'] = {}
-                for angle in angle_definitions:
-                    if angle['name'] in st.session_state['selected_angles']:
-                        prompt = angle['prompt_template'].replace("{character_desc}", full_desc)
-                        st.session_state['generated_angle_prompts'][angle['name']] = prompt
-
-                if 'enhanced_character_desc' in st.session_state:
-                    st.success(f"✅ Generated {len(st.session_state['generated_angle_prompts'])} prompts using AI-enhanced description!")
-                else:
-                    st.success(f"✅ Generated {len(st.session_state['generated_angle_prompts'])} prompts!")
 
     # Display Generated Prompts - VISUAL CARDS
     if 'generated_angle_prompts' in st.session_state and len(st.session_state['generated_angle_prompts']) > 0:
