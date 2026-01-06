@@ -3399,48 +3399,90 @@ with t_image:
     if 'selected_angles' not in st.session_state:
         st.session_state['selected_angles'] = []
 
-    # Visual Storyboard Grid - 4x2 Cards
+    # Visual Storyboard Grid - 4x2 Cards with Visual Previews
     st.markdown("""
         <style>
-        /* Storyboard Card Styling */
+        /* Storyboard Card Styling - AI Preneur Style */
         .storyboard-card {
-            background: linear-gradient(145deg, rgba(30,30,30,0.9), rgba(20,20,20,0.9));
+            background: linear-gradient(145deg, rgba(30,30,30,0.95), rgba(20,20,20,0.95));
             border: 2px solid rgba(0, 217, 255, 0.3);
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
+            border-radius: 15px;
+            overflow: hidden;
             cursor: pointer;
             transition: all 0.3s ease;
-            min-height: 180px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
+            position: relative;
+            height: 200px;
         }
         .storyboard-card:hover {
             border-color: #d1fe17;
             transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(209, 254, 23, 0.2);
+            box-shadow: 0 10px 30px rgba(209, 254, 23, 0.3);
         }
         .storyboard-card-selected {
             border-color: #d1fe17 !important;
-            background: linear-gradient(145deg, rgba(50,50,30,0.9), rgba(40,40,20,0.9));
-            box-shadow: 0 0 20px rgba(209, 254, 23, 0.3);
+            box-shadow: 0 0 25px rgba(209, 254, 23, 0.4);
         }
-        .card-emoji {
-            font-size: 3em;
-            margin-bottom: 10px;
+        .card-visual {
+            width: 100%;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .card-visual-icon {
+            font-size: 3.5em;
+            z-index: 2;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+        }
+        .card-visual-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.3;
+            z-index: 1;
+        }
+
+        /* Different gradients for each angle type */
+        .card-wide { background: linear-gradient(135deg, rgba(0, 217, 255, 0.3), rgba(0, 150, 200, 0.3)); }
+        .card-medium { background: linear-gradient(135deg, rgba(100, 150, 255, 0.3), rgba(50, 100, 200, 0.3)); }
+        .card-closeup { background: linear-gradient(135deg, rgba(255, 100, 150, 0.3), rgba(200, 50, 100, 0.3)); }
+        .card-extreme { background: linear-gradient(135deg, rgba(255, 50, 100, 0.3), rgba(150, 0, 50, 0.3)); }
+        .card-ots { background: linear-gradient(135deg, rgba(150, 100, 255, 0.3), rgba(100, 50, 200, 0.3)); }
+        .card-low { background: linear-gradient(135deg, rgba(255, 200, 0, 0.3), rgba(200, 150, 0, 0.3)); }
+        .card-high { background: linear-gradient(135deg, rgba(0, 255, 200, 0.3), rgba(0, 200, 150, 0.3)); }
+        .card-dutch { background: linear-gradient(135deg, rgba(200, 0, 255, 0.3), rgba(150, 0, 200, 0.3)); }
+
+        .card-info {
+            padding: 15px;
+            text-align: center;
         }
         .card-title {
-            font-size: 1.1em;
+            font-size: 0.95em;
             font-weight: 800;
             letter-spacing: 0.1em;
             color: #00d9ff;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
         }
         .card-desc {
-            font-size: 0.85em;
+            font-size: 0.75em;
             color: #888;
-            line-height: 1.4;
+            line-height: 1.3;
+        }
+        .card-selected-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #d1fe17;
+            color: #000;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.7em;
+            font-weight: 800;
+            z-index: 10;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -3449,24 +3491,35 @@ with t_image:
     grid_row1 = st.columns(4, gap="medium")
     grid_row2 = st.columns(4, gap="medium")
 
+    # Card gradient mapping
+    card_gradients = ['card-wide', 'card-medium', 'card-closeup', 'card-extreme',
+                     'card-ots', 'card-low', 'card-high', 'card-dutch']
+
     # Row 1: First 4 angles
     for i, angle in enumerate(angle_definitions[:4]):
         with grid_row1[i]:
             is_selected = angle['name'] in st.session_state['selected_angles']
-
-            # Create visual card container
             card_class = "storyboard-card-selected" if is_selected else ""
+            selected_badge = '<div class="card-selected-badge">✓ SELECTED</div>' if is_selected else ''
+
+            # Create visual card with gradient background
             st.markdown(f"""
             <div class="storyboard-card {card_class}">
-                <div class="card-emoji">{angle['emoji']}</div>
-                <div class="card-title">{angle['name'].upper()}</div>
-                <div class="card-desc">{angle['desc']}</div>
+                {selected_badge}
+                <div class="card-visual">
+                    <div class="card-visual-bg {card_gradients[i]}"></div>
+                    <div class="card-visual-icon">{angle['emoji']}</div>
+                </div>
+                <div class="card-info">
+                    <div class="card-title">{angle['name'].upper()}</div>
+                    <div class="card-desc">{angle['desc']}</div>
+                </div>
             </div>
             """, unsafe_allow_html=True)
 
             # Toggle button below card
             if st.button(
-                "✓ Selected" if is_selected else "Select",
+                "✓ Selected" if is_selected else "○ Select",
                 key=f"angle_toggle_{i}",
                 use_container_width=True,
                 type="primary" if is_selected else "secondary"
@@ -3481,20 +3534,27 @@ with t_image:
     for i, angle in enumerate(angle_definitions[4:], start=4):
         with grid_row2[i-4]:
             is_selected = angle['name'] in st.session_state['selected_angles']
-
-            # Create visual card container
             card_class = "storyboard-card-selected" if is_selected else ""
+            selected_badge = '<div class="card-selected-badge">✓ SELECTED</div>' if is_selected else ''
+
+            # Create visual card with gradient background
             st.markdown(f"""
             <div class="storyboard-card {card_class}">
-                <div class="card-emoji">{angle['emoji']}</div>
-                <div class="card-title">{angle['name'].upper()}</div>
-                <div class="card-desc">{angle['desc']}</div>
+                {selected_badge}
+                <div class="card-visual">
+                    <div class="card-visual-bg {card_gradients[i]}"></div>
+                    <div class="card-visual-icon">{angle['emoji']}</div>
+                </div>
+                <div class="card-info">
+                    <div class="card-title">{angle['name'].upper()}</div>
+                    <div class="card-desc">{angle['desc']}</div>
+                </div>
             </div>
             """, unsafe_allow_html=True)
 
             # Toggle button below card
             if st.button(
-                "✓ Selected" if is_selected else "Select",
+                "✓ Selected" if is_selected else "○ Select",
                 key=f"angle_toggle_{i}",
                 use_container_width=True,
                 type="primary" if is_selected else "secondary"
