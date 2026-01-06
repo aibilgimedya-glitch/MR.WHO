@@ -64,12 +64,19 @@ with st.sidebar:
     )
     if gemini_key:
         st.session_state.gemini_api_key = gemini_key
+        st.success("✅ Gemini API Key Aktif!")
+    else:
+        st.warning("⚠️ API Key gerekli")
 
     email = st.text_input(
         "E-posta (PubMed için):",
         value="researcher@example.com",
         help="PubMed API kullanımı için gerekli"
     )
+    if email and email != "researcher@example.com":
+        st.success("✅ E-posta ayarlandı")
+    else:
+        st.info("ℹ️ Varsayılan e-posta kullanılıyor")
 
     st.markdown("---")
     st.markdown("### 📊 İstatistikler")
