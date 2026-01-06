@@ -3306,27 +3306,43 @@ Kamera geri çekiliyor, tüm bahçeyi gösteriyor. Mükemmel bir an.""",
 
 # --- TAB 3.5: IMAGE (8 ANGLE PROMPT GENERATOR) ---
 with t_image:
-    st.markdown("# 🖼️ IMAGE - 8 Angle Prompt Generator")
-    st.caption("Generate character prompts from 8 different camera angles")
+    # Modern Header
+    st.markdown("""
+    <div style='text-align: center; padding: 20px 0;'>
+        <h1 style='font-size: 2.5em; font-weight: 900; letter-spacing: 0.1em; color: #d1fe17;'>
+            AI VISUAL PRODUCTION
+        </h1>
+        <p style='color: #888; font-size: 1.1em; letter-spacing: 0.15em;'>8-ANGLE STORYBOARD SYSTEM</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("---")
 
-    # Center: Reference Image Upload
-    st.markdown("### 📷 Reference Image")
+    # Hero Image - Large Preview at Top
+    if st.session_state['uploaded_img']:
+        st.markdown("""
+        <div style='text-align: center; padding: 10px 0;'>
+            <p style='color: #00d9ff; font-weight: 700; letter-spacing: 0.15em; font-size: 0.9em;'>HERO IMAGE</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-    col_spacer1, col_center, col_spacer2 = st.columns([0.5, 2, 0.5])
-
-    with col_center:
-        if st.session_state['uploaded_img']:
-            st.image(st.session_state['uploaded_img'], caption="Reference Character", use_column_width=True)
-        else:
-            st.info("⚠️ Please upload a reference image from sidebar first")
+        col_spacer1, col_hero, col_spacer2 = st.columns([0.2, 2.5, 0.2])
+        with col_hero:
+            st.image(st.session_state['uploaded_img'], use_column_width=True)
+    else:
+        st.info("📷 Upload a reference image from the sidebar to begin")
 
     st.markdown("---")
 
-    # 8 Angle Buttons Grid (4x2)
-    st.markdown("### 🎯 Select Camera Angles")
-    st.caption("Click on angles to generate prompts for character consistency")
+    # STORYBOARD GRID Section
+    st.markdown("""
+    <div style='text-align: center; padding: 15px 0;'>
+        <h2 style='font-size: 1.8em; font-weight: 800; letter-spacing: 0.15em; color: #E0E0E0;'>
+            STORYBOARD
+        </h2>
+        <p style='color: #666; font-size: 0.9em;'>Select camera angles to generate professional prompts</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     angle_definitions = [
         {
@@ -3383,31 +3399,77 @@ with t_image:
     if 'selected_angles' not in st.session_state:
         st.session_state['selected_angles'] = []
 
-    # Display 8 angle buttons in compact 4x2 grid
+    # Visual Storyboard Grid - 4x2 Cards
     st.markdown("""
         <style>
-        div[data-testid="stButton"] > button {
-            padding: 8px 12px !important;
-            font-size: 0.85em !important;
-            height: auto !important;
-            min-height: 40px !important;
-            white-space: normal !important;
+        /* Storyboard Card Styling */
+        .storyboard-card {
+            background: linear-gradient(145deg, rgba(30,30,30,0.9), rgba(20,20,20,0.9));
+            border: 2px solid rgba(0, 217, 255, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .storyboard-card:hover {
+            border-color: #d1fe17;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(209, 254, 23, 0.2);
+        }
+        .storyboard-card-selected {
+            border-color: #d1fe17 !important;
+            background: linear-gradient(145deg, rgba(50,50,30,0.9), rgba(40,40,20,0.9));
+            box-shadow: 0 0 20px rgba(209, 254, 23, 0.3);
+        }
+        .card-emoji {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+        .card-title {
+            font-size: 1.1em;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            color: #00d9ff;
+            margin-bottom: 8px;
+        }
+        .card-desc {
+            font-size: 0.85em;
+            color: #888;
+            line-height: 1.4;
         }
         </style>
     """, unsafe_allow_html=True)
 
-    angle_row1 = st.columns(4, gap="small")
-    angle_row2 = st.columns(4, gap="small")
+    # Create grid layout for 8 angles (4x2)
+    grid_row1 = st.columns(4, gap="medium")
+    grid_row2 = st.columns(4, gap="medium")
 
+    # Row 1: First 4 angles
     for i, angle in enumerate(angle_definitions[:4]):
-        with angle_row1[i]:
+        with grid_row1[i]:
             is_selected = angle['name'] in st.session_state['selected_angles']
+
+            # Create visual card container
+            card_class = "storyboard-card-selected" if is_selected else ""
+            st.markdown(f"""
+            <div class="storyboard-card {card_class}">
+                <div class="card-emoji">{angle['emoji']}</div>
+                <div class="card-title">{angle['name'].upper()}</div>
+                <div class="card-desc">{angle['desc']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Toggle button below card
             if st.button(
-                f"{angle['emoji']} {angle['name'].upper()}",
-                key=f"angle_btn_{i}",
+                "✓ Selected" if is_selected else "Select",
+                key=f"angle_toggle_{i}",
                 use_container_width=True,
-                type="primary" if is_selected else "secondary",
-                help=angle['desc']
+                type="primary" if is_selected else "secondary"
             ):
                 if is_selected:
                     st.session_state['selected_angles'].remove(angle['name'])
@@ -3415,15 +3477,27 @@ with t_image:
                     st.session_state['selected_angles'].append(angle['name'])
                 st.rerun()
 
+    # Row 2: Last 4 angles
     for i, angle in enumerate(angle_definitions[4:], start=4):
-        with angle_row2[i-4]:
+        with grid_row2[i-4]:
             is_selected = angle['name'] in st.session_state['selected_angles']
+
+            # Create visual card container
+            card_class = "storyboard-card-selected" if is_selected else ""
+            st.markdown(f"""
+            <div class="storyboard-card {card_class}">
+                <div class="card-emoji">{angle['emoji']}</div>
+                <div class="card-title">{angle['name'].upper()}</div>
+                <div class="card-desc">{angle['desc']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Toggle button below card
             if st.button(
-                f"{angle['emoji']} {angle['name'].upper()}",
-                key=f"angle_btn_{i}",
+                "✓ Selected" if is_selected else "Select",
+                key=f"angle_toggle_{i}",
                 use_container_width=True,
-                type="primary" if is_selected else "secondary",
-                help=angle['desc']
+                type="primary" if is_selected else "secondary"
             ):
                 if is_selected:
                     st.session_state['selected_angles'].remove(angle['name'])
@@ -3564,26 +3638,86 @@ Enhanced description:"""
                 else:
                     st.success(f"✅ Generated {len(st.session_state['generated_angle_prompts'])} prompts!")
 
-    # Display Generated Prompts - INDIVIDUAL COPY FOR EACH
+    # Display Generated Prompts - VISUAL CARDS
     if 'generated_angle_prompts' in st.session_state and len(st.session_state['generated_angle_prompts']) > 0:
         st.markdown("---")
-        st.markdown("### 📝 Generated Prompts")
-        st.caption(f"{len(st.session_state['generated_angle_prompts'])} açı için prompt oluşturuldu - Her birini ayrı kopyalayabilirsin")
 
-        # Display each prompt individually with copy instructions
+        # Modern Prompt Section Header
+        st.markdown("""
+        <div style='text-align: center; padding: 15px 0;'>
+            <h2 style='font-size: 1.8em; font-weight: 800; letter-spacing: 0.15em; color: #E0E0E0;'>
+                GENERATED PROMPTS
+            </h2>
+            <p style='color: #00d9ff; font-size: 0.9em;'>✓ {count} professional prompts ready to use</p>
+        </div>
+        """.replace('{count}', str(len(st.session_state['generated_angle_prompts']))), unsafe_allow_html=True)
+
+        # Prompt Cards Styling
+        st.markdown("""
+        <style>
+        .prompt-card {
+            background: linear-gradient(145deg, rgba(25,25,25,0.95), rgba(15,15,15,0.95));
+            border: 2px solid rgba(237, 21, 114, 0.4);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 15px 0;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+        .prompt-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(0, 217, 255, 0.2);
+        }
+        .prompt-emoji {
+            font-size: 2.5em;
+        }
+        .prompt-title {
+            font-size: 1.3em;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            color: #d1fe17;
+        }
+        .prompt-text {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(0, 217, 255, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+            line-height: 1.6;
+            color: #E0E0E0;
+            word-wrap: break-word;
+        }
+        .copy-hint {
+            text-align: center;
+            color: #666;
+            font-size: 0.85em;
+            margin-top: 10px;
+            font-style: italic;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+        # Display each prompt in visual card format
         for angle_name, prompt in st.session_state['generated_angle_prompts'].items():
             angle_data = next((a for a in angle_definitions if a['name'] == angle_name), None)
             if angle_data:
-                # Header for each angle
-                st.markdown(f"#### {angle_data['emoji']} {angle_name.upper()}")
-
-                # Prompt in code block (easy to select and copy)
-                st.code(prompt, language=None)
-
-                # Small instruction
-                st.caption("☝️ Prompt'u kopyalamak için: Kod kutusuna tıkla → Ctrl+A (tümünü seç) → Ctrl+C (kopyala)")
-
-                st.markdown("---")
+                st.markdown(f"""
+                <div class="prompt-card">
+                    <div class="prompt-header">
+                        <span class="prompt-emoji">{angle_data['emoji']}</span>
+                        <div>
+                            <div class="prompt-title">{angle_name.upper()}</div>
+                            <div style="color: #888; font-size: 0.9em;">{angle_data['desc']}</div>
+                        </div>
+                    </div>
+                    <div class="prompt-text">{prompt}</div>
+                    <div class="copy-hint">💡 Click inside the box → Ctrl/Cmd+A → Ctrl/Cmd+C to copy</div>
+                </div>
+                """, unsafe_allow_html=True)
 
 # --- TAB 4: VIDEO RENDER ---
 with t_video:
