@@ -6,6 +6,7 @@ import random
 import time
 from PIL import Image
 import streamlit.components.v1 as components
+import uuid
 
 # --- SAYFA AYARLARI ---
 st.set_page_config(
@@ -27,24 +28,104 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
 
-    /* Butonlar - Koyu, hover'da parlak */
+    /* Perfect Glass Button - MR.WHO Style */
     .stButton>button {
         width: 100%;
-        background: linear-gradient(90deg, #2A2A2A 0%, #1E1E1E 100%);
-        color: #E0E0E0;
-        border-radius: 8px;
-        height: 45px;
+        position: relative;
+        padding: 22px 55px;
         font-weight: 800;
-        border: 1px solid #333;
-        letter-spacing: 0.5px;
-        transition: all 0.3s ease;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: #d1fe17;
+        border: 2px solid transparent;
+        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(0, 0, 0, 1), rgba(0, 0, 0, 1));
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        box-shadow:
+            0 10px 30px rgba(0, 0, 0, 0.5),
+            inset 0 1px 0 rgba(209, 254, 23, 0.15),
+            inset 0 -1px 0 rgba(209, 254, 23, 0.04);
+        overflow: hidden;
+        cursor: pointer;
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                    box-shadow 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                    background 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                    color 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     }
+
+    /* Flowing Border Effect */
+    .stButton>button::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        padding: 2px;
+        border-radius: inherit;
+        background: linear-gradient(
+            135deg,
+            rgba(237, 21, 114, 0.8),
+            rgba(209, 254, 23, 0.8),
+            rgba(237, 21, 114, 0.8),
+            rgba(209, 254, 23, 0.8),
+            rgba(237, 21, 114, 0.8)
+        );
+        background-size: 200% 200%;
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        opacity: 0.6;
+        animation: borderFlow 3s linear infinite;
+        transition: opacity 0.35s, animation-duration 0.35s;
+    }
+
+    /* Radial Glow Effect */
+    .stButton>button::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: radial-gradient(
+            circle at 50% 50%,
+            rgba(209, 254, 23, 0.25),
+            transparent 55%
+        );
+        opacity: 0;
+        transition: opacity 0.35s;
+        pointer-events: none;
+    }
+
+    /* Hover State */
     .stButton>button:hover {
-        background: linear-gradient(90deg, #CCFF00 0%, #AAFF00 100%);
-        color: black;
-        border-color: #CCFF00;
-        transform: scale(1.02);
-        box-shadow: 0 0 15px rgba(204, 255, 0, 0.4);
+        background: #d1fe17;
+        color: #000;
+        transform: translateY(-3px) scale(1.02);
+        box-shadow:
+            0 14px 50px rgba(209, 254, 23, 0.5),
+            0 0 80px rgba(237, 21, 114, 0.3),
+            inset 0 1px 0 rgba(0, 0, 0, 0.1),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    .stButton>button:hover::before {
+        opacity: 1;
+        animation-duration: 2s;
+    }
+
+    .stButton>button:hover::after {
+        opacity: 1;
+    }
+
+    /* Active State */
+    .stButton>button:active {
+        transform: translateY(-1px) scale(0.99);
+        box-shadow:
+            0 6px 24px rgba(209, 254, 23, 0.4),
+            inset 0 1px 0 rgba(0, 0, 0, 0.2);
+    }
+
+    /* Border Flow Animation */
+    @keyframes borderFlow {
+        to { background-position: 200% 50%; }
     }
 
     /* Seçili Kart Stili (Custom) */
@@ -134,7 +215,13 @@ defaults = {
     # Ideas & Notes System
     'ideas': [],
     'ideas_search': "",
-    'ideas_filter_tags': []
+    'ideas_filter_tags': [],
+    # Professional Prompt Engine
+    'saved_characters': [],
+    # Batch Processing Pipeline
+    'auto_retry_enabled': True,
+    'max_retry_attempts': 3,
+    'queue_auto_process': False
 }
 for k, v in defaults.items():
     if k not in st.session_state: st.session_state[k] = v
@@ -750,7 +837,7 @@ def search_ideas(query="", filter_tags=None):
 # --- VIDEO API INTEGRATION INFRASTRUCTURE ---
 VIDEO_API_PROVIDERS = {
     "Higgsfield": {
-        "name": "Higgsfield",
+        "name": "Higgsfield AI",
         "base_url": "https://api.higgsfield.ai/v1",
         "supports": ["image-to-video", "text-to-video"],
         "max_duration": 10,
@@ -765,6 +852,22 @@ VIDEO_API_PROVIDERS = {
         "api_key_env": "GOOGLE_API_KEY",
         "prompt_format": ["normal"]
     },
+    "Luma AI": {
+        "name": "Luma Dream Machine",
+        "base_url": "https://api.lumalabs.ai/v1",
+        "supports": ["image-to-video", "text-to-video"],
+        "max_duration": 5,
+        "api_key_env": "LUMA_API_KEY",
+        "prompt_format": ["normal"]
+    },
+    "Runway Gen-3": {
+        "name": "Runway Gen-3 Alpha",
+        "base_url": "https://api.runwayml.com/v1",
+        "supports": ["image-to-video", "text-to-video"],
+        "max_duration": 10,
+        "api_key_env": "RUNWAY_API_KEY",
+        "prompt_format": ["normal", "json"]
+    },
     "Kling AI": {
         "name": "Kling AI",
         "base_url": "https://api.kling.ai/v1",
@@ -772,6 +875,22 @@ VIDEO_API_PROVIDERS = {
         "max_duration": 10,
         "api_key_env": "KLING_API_KEY",
         "prompt_format": ["normal", "json"]
+    },
+    "Pika Labs": {
+        "name": "Pika 1.5",
+        "base_url": "https://api.pika.art/v1",
+        "supports": ["image-to-video", "text-to-video"],
+        "max_duration": 4,
+        "api_key_env": "PIKA_API_KEY",
+        "prompt_format": ["normal"]
+    },
+    "Stability AI": {
+        "name": "Stable Video Diffusion",
+        "base_url": "https://api.stability.ai/v1",
+        "supports": ["image-to-video"],
+        "max_duration": 4,
+        "api_key_env": "STABILITY_API_KEY",
+        "prompt_format": ["normal"]
     }
 }
 
@@ -969,28 +1088,292 @@ def build_advanced_prompt(base_description="", format_type="normal"):
 
         return final_prompt
 
+# --- BATCH PROCESSING QUEUE FUNCTIONS ---
+def add_to_queue(task_data):
+    """
+    Adds a video generation task to the queue
+    task_data = {
+        'id': unique_id,
+        'type': 'shot_generator' | 'img2vid' | 'text2vid',
+        'prompt': str,
+        'settings': dict,
+        'status': 'pending' | 'processing' | 'completed' | 'failed',
+        'created_at': timestamp,
+        'attempts': int,
+        'max_attempts': int,
+        'error': str (if failed)
+    }
+    """
+    if 'generation_queue' not in st.session_state:
+        st.session_state.generation_queue = []
+
+    task_data['created_at'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    task_data['attempts'] = 0
+    task_data['status'] = 'pending'
+
+    st.session_state.generation_queue.append(task_data)
+    return task_data['id']
+
+def remove_from_queue(task_id):
+    """Remove a task from queue by ID"""
+    st.session_state.generation_queue = [
+        task for task in st.session_state.generation_queue
+        if task['id'] != task_id
+    ]
+
+def get_queue_stats():
+    """Get statistics about current queue"""
+    if 'generation_queue' not in st.session_state:
+        return {'total': 0, 'pending': 0, 'processing': 0, 'completed': 0, 'failed': 0}
+
+    queue = st.session_state.generation_queue
+    return {
+        'total': len(queue),
+        'pending': len([t for t in queue if t['status'] == 'pending']),
+        'processing': len([t for t in queue if t['status'] == 'processing']),
+        'completed': len([t for t in queue if t['status'] == 'completed']),
+        'failed': len([t for t in queue if t['status'] == 'failed'])
+    }
+
+def retry_failed_task(task_id):
+    """Retry a failed task"""
+    for task in st.session_state.generation_queue:
+        if task['id'] == task_id and task['status'] == 'failed':
+            task['status'] = 'pending'
+            task['attempts'] += 1
+            task['error'] = None
+            return True
+    return False
+
+def clear_completed_tasks():
+    """Remove all completed tasks from queue"""
+    st.session_state.generation_queue = [
+        task for task in st.session_state.generation_queue
+        if task['status'] != 'completed'
+    ]
+
+# --- GLASS MORPHISM SIDEBAR STYLING ---
+st.markdown("""
+<style>
+/* Sidebar Glass Morphism */
+[data-testid="stSidebar"] {
+    background: rgba(10, 12, 13, 0.95) !important;
+}
+
+[data-testid="stSidebar"] > div:first-child {
+    background: rgba(255, 255, 255, 0.03) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+}
+
+/* Glass Cards */
+.glass-card {
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(209, 254, 23, 0.2) !important;
+    border-radius: 12px !important;
+    padding: 15px !important;
+    margin-bottom: 15px !important;
+}
+
+/* Logo Section */
+.sidebar-logo {
+    text-align: center !important;
+    padding: 25px 15px !important;
+    background: rgba(209, 254, 23, 0.05) !important;
+    backdrop-filter: blur(20px) !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(209, 254, 23, 0.2) !important;
+    margin-bottom: 25px !important;
+}
+
+.sidebar-logo h1 {
+    font-size: 2em !important;
+    font-weight: 900 !important;
+    color: #d1fe17 !important;
+    letter-spacing: 8px !important;
+    text-shadow: 0 0 20px rgba(209, 254, 23, 0.5) !important;
+    margin: 0 !important;
+}
+
+.sidebar-logo p {
+    color: #888 !important;
+    font-size: 0.9em !important;
+    margin-top: 8px !important;
+    letter-spacing: 2px !important;
+}
+
+/* Connection Indicator */
+.connection-status {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 0.85em !important;
+    color: #d1fe17 !important;
+}
+
+.status-dot {
+    width: 8px !important;
+    height: 8px !important;
+    background: #0f0 !important;
+    border-radius: 50% !important;
+    animation: pulse-dot 2s infinite !important;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.status-dot.offline {
+    background: #f00 !important;
+    animation: none !important;
+}
+
+/* Glass Effect Selectbox/Dropdown */
+[data-testid="stSidebar"] .stSelectbox > div > div {
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(209, 254, 23, 0.3) !important;
+    border-radius: 8px !important;
+    color: #d1fe17 !important;
+    transition: all 0.3s ease !important;
+}
+
+[data-testid="stSidebar"] .stSelectbox > div > div:hover {
+    border-color: rgba(209, 254, 23, 0.6) !important;
+    box-shadow: 0 0 15px rgba(209, 254, 23, 0.2) !important;
+}
+
+/* Dropdown menu */
+[data-baseweb="popover"] {
+    background: rgba(19, 22, 24, 0.95) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(209, 254, 23, 0.2) !important;
+    border-radius: 10px !important;
+}
+
+[data-baseweb="popover"] ul {
+    background: transparent !important;
+}
+
+[data-baseweb="popover"] li {
+    background: rgba(255, 255, 255, 0.03) !important;
+    color: #fff !important;
+    transition: all 0.2s ease !important;
+    border-radius: 6px !important;
+    margin: 4px !important;
+}
+
+[data-baseweb="popover"] li:hover {
+    background: rgba(209, 254, 23, 0.15) !important;
+    color: #d1fe17 !important;
+    transform: translateX(4px) !important;
+}
+
+/* Text Input Glass Effect */
+[data-testid="stSidebar"] input[type="password"],
+[data-testid="stSidebar"] input[type="text"] {
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(209, 254, 23, 0.3) !important;
+    border-radius: 8px !important;
+    color: #fff !important;
+}
+
+[data-testid="stSidebar"] input[type="password"]:focus,
+[data-testid="stSidebar"] input[type="text"]:focus {
+    border-color: rgba(209, 254, 23, 0.6) !important;
+    box-shadow: 0 0 15px rgba(209, 254, 23, 0.2) !important;
+}
+
+/* Section Title */
+.section-title {
+    color: #d1fe17 !important;
+    font-size: 0.9em !important;
+    font-weight: 700 !important;
+    margin-bottom: 10px !important;
+}
+
+/* Thumbnails */
+.thumbnail-grid {
+    display: flex !important;
+    gap: 8px !important;
+    margin-top: 10px !important;
+}
+
+.thumbnail {
+    width: 60px !important;
+    height: 60px !important;
+    background: rgba(209, 254, 23, 0.1) !important;
+    border: 1px solid rgba(209, 254, 23, 0.3) !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+}
+
+.thumbnail img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # --- SIDEBAR ---
 with st.sidebar:
-    st.markdown("### 🎬 MR.WHO")
-    st.markdown("#### Cinema Director")
-    st.caption("✨ Directed By **E.Yiğit Bildi**")
+    # Logo Section with Glass Effect
+    st.markdown("""
+    <div class="sidebar-logo">
+        <h1>MR.WHO</h1>
+        <p>CINEMA DIRECTOR</p>
+        <p style="font-size: 0.75em; color: #ed1572; margin-top: 5px;">✨ Directed By E.Yiğit Bildi</p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    st.markdown("---")
+    # API Status Glass Card
+    api_key = st.text_input("🔑 Gemini API Key", type="password", key="sidebar_api_key")
+
+    if api_key:
+        st.session_state['gemini_api_key'] = api_key
+        models, err = get_available_models(api_key)
+        active_model = models[0] if models else "OFFLINE"
+        is_online = bool(models)
+    else:
+        active_model = "OFFLINE"
+        is_online = False
+
+    # Status indicator
+    status_class = "" if is_online else "offline"
+    status_text = "Gemini API Connected" if is_online else "API Key Required"
+    status_color = "#0f0" if is_online else "#f00"
+
+    st.markdown(f"""
+    <div class="glass-card">
+        <div class="connection-status">
+            <div class="status-dot {status_class}"></div>
+            System Status
+        </div>
+        <div style="font-size: 0.75em; color: {status_color}; margin-top: 8px;">{status_text}</div>
+        {f'<div style="font-size: 0.7em; color: #888; margin-top: 4px;">Model: {active_model}</div>' if is_online else ''}
+    </div>
+    """, unsafe_allow_html=True)
     
-    with st.expander("🔑 API Anahtarı"):
-        api_key = st.text_input("Gemini API Key", type="password")
-        if api_key:
-            models, err = get_available_models(api_key)
-            active_model = models[0] if models else "OFFLINE"
-            if models: st.success("Online")
-        else:
-            active_model = "OFFLINE"
-    
-    st.markdown("### 🖼️ Proje Görseli")
-    uploaded_file = st.file_uploader("Referans Yükle", type=["jpg", "png", "webp"])
+    # Reference Image Glass Card
+    st.markdown('<div class="section-title">📁 Reference Image</div>', unsafe_allow_html=True)
+    uploaded_file = st.file_uploader("Upload reference", type=["jpg", "png", "webp"], label_visibility="collapsed")
+
     if uploaded_file:
-        st.image(uploaded_file, use_column_width=True)
         st.session_state['uploaded_img'] = Image.open(uploaded_file)
+
+        # Show image in glass card
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        st.image(uploaded_file, use_column_width=True)
+        st.caption(f"📎 {uploaded_file.name}")
+        st.markdown('</div>', unsafe_allow_html=True)
 
         # AI Analysis Button
         if api_key and st.button("🔍 Analyze with Gemini AI", use_container_width=True):
@@ -1019,10 +1402,10 @@ with st.sidebar:
                 else:
                     st.error(error)
 
-    st.markdown("---")
-    st.markdown("### 🎥 API Providers")
+    # API Providers Glass Card
+    st.markdown('<div class="section-title" style="margin-top: 20px;">🎬 API Providers</div>', unsafe_allow_html=True)
 
-    # Video Provider
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.markdown("**Video Generation**")
     st.session_state.video_provider = st.selectbox(
         "Video Provider",
@@ -1032,10 +1415,12 @@ with st.sidebar:
         key="video_provider_select"
     )
     provider_info = VIDEO_API_PROVIDERS[st.session_state.video_provider]
-    st.caption(f"**Supports:** {', '.join(provider_info['supports'])}")
-    st.caption(f"**Max Duration:** {provider_info['max_duration']}s")
+    st.caption(f"Supports: {', '.join(provider_info['supports'])}")
+    st.caption(f"Max: {provider_info['max_duration']}s")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    # Image Provider
+    # Image Provider Glass Card
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.markdown("**Image Generation**")
     st.session_state.image_provider = st.selectbox(
         "Image Provider",
@@ -1045,7 +1430,8 @@ with st.sidebar:
         key="image_provider_select"
     )
     image_provider_info = IMAGE_API_PROVIDERS[st.session_state.image_provider]
-    st.caption(f"**Supports:** {', '.join(image_provider_info['supports'])}")
+    st.caption(f"Supports: {', '.join(image_provider_info['supports'])}")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # Prompt Format
     st.markdown("**Prompt Format**")
@@ -1097,12 +1483,305 @@ with st.sidebar:
             else:
                 st.error(message)
 
+# ============================================
+# LANDING PAGE - WEBGL SHADER ANIMATION
+# ============================================
+if 'app_entered' not in st.session_state:
+    # Check URL params for direct entry
+    try:
+        from streamlit import query_params
+        if 'app_entered' in st.query_params:
+            st.session_state['app_entered'] = True
+        else:
+            st.session_state['app_entered'] = False
+    except:
+        st.session_state['app_entered'] = False
+
+if not st.session_state['app_entered']:
+    components.html("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: #000;
+    overflow: hidden;
+}
+
+#canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.content {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    text-align: center;
+    pointer-events: none;
+}
+
+.logo {
+    font-size: 6em;
+    font-weight: 900;
+    letter-spacing: 25px;
+    color: rgba(0, 217, 255, 0.2);
+    margin-bottom: 20px;
+    animation: float 4s ease-in-out infinite;
+    text-shadow:
+        0 0 20px rgba(0, 217, 255, 0.3),
+        0 0 40px rgba(0, 217, 255, 0.2);
+    transition: all 0.5s ease;
+}
+
+.logo:hover {
+    color: rgba(0, 217, 255, 0.8);
+    text-shadow:
+        0 0 30px rgba(0, 217, 255, 0.8),
+        0 0 60px rgba(0, 217, 255, 0.5);
+}
+
+.subtitle {
+    font-size: 1.3em;
+    color: rgba(138, 43, 226, 0.4);
+    letter-spacing: 8px;
+    margin-bottom: 60px;
+}
+
+.enter-btn {
+    padding: 18px 50px;
+    font-size: 1em;
+    font-weight: 800;
+    letter-spacing: 3px;
+    background: rgba(0, 217, 255, 0.1);
+    color: #00d9ff;
+    border: 2px solid #00d9ff;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.4s ease;
+    font-family: 'Space Grotesk', sans-serif;
+    pointer-events: all;
+    backdrop-filter: blur(10px);
+}
+
+.enter-btn:hover {
+    background: #00d9ff;
+    color: #000;
+    box-shadow: 0 0 30px rgba(0, 217, 255, 0.6);
+    transform: translateY(-3px);
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-15px); }
+}
+
+.hint {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #666;
+    font-size: 0.9em;
+    letter-spacing: 2px;
+    animation: blink 2s ease-in-out infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+}
+</style>
+
+    </head>
+    <body>
+
+<canvas id="canvas"></canvas>
+
+<div class="content">
+    <div class="logo">MR.WHO</div>
+    <div class="subtitle">CINEMA DIRECTOR</div>
+    <button class="enter-btn" onclick="enterStudio()">🎬 ENTER STUDIO</button>
+</div>
+
+<div class="hint">Click anywhere to interact</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+class Particle {
+    constructor(x, y) {
+        this.x = x || Math.random() * canvas.width;
+        this.y = y || Math.random() * canvas.height;
+        this.size = Math.random() * 3 + 1;
+        this.speedX = Math.random() * 2 - 1;
+        this.speedY = Math.random() * 2 - 1;
+        this.opacity = Math.random() * 0.5 + 0.3;
+        this.hue = Math.random() * 60 + 180; // Blue-cyan range
+    }
+
+    update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+
+        // Bounce off edges
+        if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+        if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+    }
+
+    draw() {
+        ctx.fillStyle = `hsla(${this.hue}, 100%, 50%, ${this.opacity})`;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Glow effect
+        ctx.fillStyle = `hsla(${this.hue}, 100%, 50%, ${this.opacity * 0.3})`;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+const particles = [];
+const particleCount = 150;
+
+// Initialize particles
+for (let i = 0; i < particleCount; i++) {
+    particles.push(new Particle());
+}
+
+function connectParticles() {
+    for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+            const dx = particles[i].x - particles[j].x;
+            const dy = particles[i].y - particles[j].y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < 120) {
+                ctx.strokeStyle = `hsla(${particles[i].hue}, 100%, 50%, ${0.15 - distance / 120 * 0.15})`;
+                ctx.lineWidth = 0.5;
+                ctx.beginPath();
+                ctx.moveTo(particles[i].x, particles[i].y);
+                ctx.lineTo(particles[j].x, particles[j].y);
+                ctx.stroke();
+            }
+        }
+    }
+}
+
+function animate() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    particles.forEach(particle => {
+        particle.update();
+        particle.draw();
+    });
+
+    connectParticles();
+    requestAnimationFrame(animate);
+}
+
+animate();
+
+// Mouse interaction
+canvas.addEventListener('click', (e) => {
+    const mouseX = e.clientX;
+    const mouseY = e.clientY;
+
+    // Create burst of particles
+    for (let i = 0; i < 10; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 5 + 2;
+        const particle = new Particle(mouseX, mouseY);
+        particle.speedX = Math.cos(angle) * speed;
+        particle.speedY = Math.sin(angle) * speed;
+        particles.push(particle);
+    }
+
+    // Remove excess particles
+    if (particles.length > particleCount + 50) {
+        particles.splice(0, 50);
+    }
+});
+
+// Mouse move interaction
+canvas.addEventListener('mousemove', (e) => {
+    const mouseX = e.clientX;
+    const mouseY = e.clientY;
+
+    particles.forEach(particle => {
+        const dx = mouseX - particle.x;
+        const dy = mouseY - particle.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < 100) {
+            particle.speedX -= dx / distance * 0.05;
+            particle.speedY -= dy / distance * 0.05;
+        }
+    });
+});
+
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+});
+
+function enterStudio() {
+    // Create explosion effect
+    particles.forEach(particle => {
+        particle.speedX *= 5;
+        particle.speedY *= 5;
+    });
+
+    // Fade out and notify parent
+    setTimeout(() => {
+        document.body.style.transition = 'opacity 1s';
+        document.body.style.opacity = '0';
+        setTimeout(() => {
+            window.parent.postMessage({type:'streamlit:setComponentValue',value:true},'*');
+        }, 1000);
+    }, 500);
+}
+</script>
+
+
+    </body>
+    </html>
+    """, height=900)
+
+    if st.button("Continue to App", key="hidden_enter", type="primary"):
+        st.session_state['app_entered'] = True
+        st.rerun()
+
+    st.stop()
+
 # --- ANA EKRAN ---
 st.title("🎬 MR.WHO Cinema Director")
 st.caption("✨ Directed By E.Yiğit Bildi")
 
 # TABS
-t_guide, t_ideas, t_studio, t_board, t_video, t_equipment, t_sys = st.tabs(["📖 REHBER", "💡 FİKİRLER & NOTLAR", "🎬 STÜDYO", "🧠 STORYBOARD", "🎞️ VİDEO", "📚 EKİPMAN REHBERİ", "⚙️ SİSTEM"])
+t_guide, t_ideas, t_studio, t_board, t_image, t_video, t_equipment, t_sys = st.tabs(["📖 REHBER", "💡 FİKİRLER & NOTLAR", "🎬 STÜDYO", "🧠 STORYBOARD", "🖼️ IMAGE", "🎞️ VİDEO", "📚 EKİPMAN REHBERİ", "⚙️ SİSTEM"])
 
 # --- TAB 0: REHBER (KULLANIM KILAVUZU) ---
 with t_guide:
@@ -1572,9 +2251,75 @@ with t_ideas:
         with st.form("new_idea_form"):
             st.markdown("#### ✨ Yeni Fikir Oluştur")
 
-            idea_title = st.text_input("Başlık *", placeholder="örn: Cyberpunk Gece Sahnesi")
-            idea_description = st.text_area("Açıklama *", placeholder="Fikrin, konseptin veya notlarını yaz...", height=100)
-            idea_tags_input = st.text_input("Etiketler (virgülle ayır)", placeholder="örn: cyberpunk, neon, gece, reklam")
+            idea_title = st.text_input("Başlık *", placeholder="örn: Bebek Arabası Reklam Filmi")
+            idea_description = st.text_area(
+                "Açıklama * (Kaba fikri yaz, AI geliştirecek)",
+                placeholder="örn: bebek arabası reklamı parkta anne mutlu...",
+                height=120,
+                key="idea_description_input"
+            )
+
+            # AI Enhancement Button
+            enhance_idea_col1, enhance_idea_col2, enhance_idea_col3 = st.columns([1, 1, 1])
+            with enhance_idea_col2:
+                enhance_idea_btn = st.form_submit_button("🤖 ENHANCE WITH AI", use_container_width=True)
+
+            if enhance_idea_btn:
+                if not idea_description:
+                    st.error("⚠️ Önce bir açıklama yaz!")
+                else:
+                    api_key = st.session_state.get('gemini_api_key')
+                    if not api_key:
+                        st.error("⚠️ Gemini API key gerekli! (Sidebar'dan ekle)")
+                    else:
+                        with st.spinner("🤖 AI fikrinizi geliştiriyor..."):
+                            try:
+                                genai.configure(api_key=api_key)
+                                model = genai.GenerativeModel('gemini-2.5-flash')
+
+                                enhancement_prompt = f"""You are a professional creative director and advertising strategist.
+Enhance this rough project idea into a detailed, professional creative brief suitable for commercial video production.
+
+Input idea: "{idea_description}"
+
+Create a detailed, professional description that includes:
+- Clear concept and vision
+- Target audience and messaging
+- Visual style and mood
+- Key scenes or moments
+- Emotional tone
+- Production approach
+- Any unique selling points
+
+Keep it concise but detailed (2-3 paragraphs). Write in Turkish. Focus on actionable creative direction.
+
+Enhanced creative brief:"""
+
+                                response = model.generate_content(enhancement_prompt)
+                                enhanced_idea = response.text.strip()
+
+                                st.session_state['enhanced_idea_description'] = enhanced_idea
+                                st.success("✅ Fikir AI tarafından geliştirildi!")
+                                st.rerun()
+
+                            except Exception as e:
+                                st.error(f"❌ AI Enhancement failed: {str(e)}")
+
+            # Show enhanced description if available
+            if 'enhanced_idea_description' in st.session_state and st.session_state['enhanced_idea_description']:
+                st.markdown("#### 🤖 AI Geliştirilmiş Fikir")
+                st.info(st.session_state['enhanced_idea_description'])
+
+                # Option to use enhanced version
+                use_enhanced = st.checkbox("✅ Geliştirilmiş versiyonu kullan", value=True)
+
+                if st.form_submit_button("❌ Temizle", key="clear_enhanced_idea"):
+                    del st.session_state['enhanced_idea_description']
+                    st.rerun()
+            else:
+                use_enhanced = False
+
+            idea_tags_input = st.text_input("Etiketler (virgülle ayır)", placeholder="örn: reklam, bebek arabası, park, anne")
 
             uploaded_images = st.file_uploader("📸 Referans Görselleri Yükle (Birden fazla seçebilirsin!)", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
             if uploaded_images:
@@ -1846,6 +2591,208 @@ with t_studio:
                 st.rerun()
 
     st.markdown("---")
+
+    # PROFESSIONAL PROMPT ENGINE
+    with st.expander("🎯 Professional Prompt Engine", expanded=False):
+        st.caption("Karakter tutarlılığı ve AI model önerileri")
+
+        prompt_tab1, prompt_tab2 = st.tabs(["👤 Karakter Yöneticisi", "🤖 AI Model Eşleştirici"])
+
+        # TAB 1: CHARACTER CONSISTENCY MANAGER
+        with prompt_tab1:
+            st.markdown("##### 👤 Karakter Tutarlılık Yöneticisi")
+            st.caption("Karakterleri kaydet ve tüm projelerinde aynı karakter tanımını kullan!")
+
+            # Add new character
+            with st.expander("➕ Yeni Karakter Ekle", expanded=False):
+                char_name = st.text_input("Karakter Adı:", key="new_char_name", placeholder="Örn: Ana Karakter, Kahve İçen Adam")
+                char_desc = st.text_area(
+                    "Karakter Tanımı:",
+                    key="new_char_desc",
+                    placeholder="Örn: 35 yaşında erkek, koyu saçlı, mavi gözlü, spor yapılı, takım elbise giyen, ciddi yüz ifadeli iş adamı",
+                    height=100
+                )
+
+                if st.button("💾 Karakteri Kaydet", use_container_width=True, type="primary"):
+                    if char_name and char_desc:
+                        new_character = {
+                            "name": char_name,
+                            "description": char_desc,
+                            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M")
+                        }
+                        st.session_state.saved_characters.append(new_character)
+                        st.success(f"✅ '{char_name}' karakteri kaydedildi!")
+                        st.rerun()
+                    else:
+                        st.error("⚠️ Lütfen karakter adı ve tanımı girin!")
+
+            st.markdown("---")
+
+            # Display saved characters
+            if st.session_state.saved_characters:
+                st.markdown("##### 📋 Kayıtlı Karakterler")
+
+                for idx, character in enumerate(st.session_state.saved_characters):
+                    with st.container():
+                        col_c1, col_c2, col_c3 = st.columns([2, 3, 1])
+
+                        with col_c1:
+                            st.markdown(f"**{character['name']}**")
+                            st.caption(f"📅 {character['created_at']}")
+
+                        with col_c2:
+                            st.caption(f"_{character['description'][:80]}..._" if len(character['description']) > 80 else f"_{character['description']}_")
+
+                        with col_c3:
+                            if st.button("Kullan", key=f"use_char_{idx}", use_container_width=True):
+                                # Copy character description to clipboard (simulated by showing it)
+                                st.session_state.character_in_use = character['description']
+                                st.success(f"✅ '{character['name']}' kullanıma hazır!")
+
+                        # Full description preview
+                        with st.expander("Tam Tanım", expanded=False):
+                            st.text(character['description'])
+
+                            # Delete button
+                            if st.button("🗑️ Sil", key=f"delete_char_{idx}", use_container_width=True):
+                                st.session_state.saved_characters.pop(idx)
+                                st.rerun()
+
+                        st.divider()
+
+                # Active character display
+                if 'character_in_use' in st.session_state and st.session_state.character_in_use:
+                    st.markdown("---")
+                    st.success("**Aktif Karakter Tanımı:**")
+                    st.code(st.session_state.character_in_use, language=None)
+                    st.caption("Bu tanımı prompt'larına ekleyebilirsin!")
+            else:
+                st.info("👋 Henüz kayıtlı karakter yok. Yukarıdan yeni karakter ekle!")
+
+        # TAB 2: AI MODEL MATCHER
+        with prompt_tab2:
+            st.markdown("##### 🤖 AI Model Eşleştirici")
+            st.caption("Sahne tipine göre en uygun AI modelini bul!")
+
+            # Scene type selection
+            scene_type = st.selectbox(
+                "Sahne Tipi:",
+                [
+                    "🎬 Aksiyon & Hızlı Hareket",
+                    "👥 Portre & Karakter Odaklı",
+                    "🏙️ Kentsel Manzara & Mimari",
+                    "🌿 Doğa & Peyzaj",
+                    "🍔 Ürün & Yiyecek",
+                    "🚗 Otomobil & Araç",
+                    "💎 Lüks & Moda",
+                    "🎨 Sanatsal & Soyut",
+                    "🏡 İç Mekan & Yaşam Alanları"
+                ],
+                key="scene_type_select"
+            )
+
+            # Model recommendations based on scene type
+            model_recommendations = {
+                "🎬 Aksiyon & Hızlı Hareket": {
+                    "best": "Kling AI",
+                    "reason": "Hızlı hareket, aksiyon sekansları ve dinamik kamera hareketlerinde üstün performans",
+                    "settings": "Motion Strength: 7-9, Duration: 4-6s, FPS: 30",
+                    "alternatives": ["Higgsfield (kararlılık için)"]
+                },
+                "👥 Portre & Karakter Odaklı": {
+                    "best": "Veo 2",
+                    "reason": "Yüz detayları, mimikler ve karakter tutarlılığında en iyi sonuç",
+                    "settings": "Motion Strength: 3-5, Duration: 4s, Focus: Close-up/Medium shots",
+                    "alternatives": ["Higgsfield (sinematik look için)"]
+                },
+                "🏙️ Kentsel Manzara & Mimari": {
+                    "best": "Higgsfield",
+                    "reason": "Mimari detaylar, geniş açılar ve stabilite konusunda profesyonel",
+                    "settings": "Motion Strength: 4-6, Composition: Wide shots, Lens: 24mm",
+                    "alternatives": ["Veo 2 (fotorealistik için)"]
+                },
+                "🌿 Doğa & Peyzaj": {
+                    "best": "Veo 2",
+                    "reason": "Doğal ışık, organik hareketler ve atmosfer yakalamada güçlü",
+                    "settings": "Motion Strength: 5-7, Lighting: Golden Hour/Natural, Atmosphere: Active",
+                    "alternatives": ["Kling (drone shots için)"]
+                },
+                "🍔 Ürün & Yiyecek": {
+                    "best": "Higgsfield",
+                    "reason": "Ürün detayları, makro çekimler ve profesyonel reklam estetiği",
+                    "settings": "Motion Strength: 2-4, Focal: 85-100mm, Lighting: Studio/Controlled",
+                    "alternatives": ["NanoBananaPro (still image için)"]
+                },
+                "🚗 Otomobil & Araç": {
+                    "best": "Kling AI",
+                    "reason": "Araç hareketi, refleksiyonlar ve dinamik kamera takibi",
+                    "settings": "Motion Strength: 6-8, Camera Movement: Tracking/Orbit, Duration: 5-6s",
+                    "alternatives": ["Higgsfield (statik beauty shots için)"]
+                },
+                "💎 Lüks & Moda": {
+                    "best": "Higgsfield",
+                    "reason": "Premium estetik, yüksek detay ve sinematik renk gradasyonu",
+                    "settings": "Color Grading: Kodak/Fuji, Lighting: Controlled, Composition: Center/Golden Ratio",
+                    "alternatives": ["Veo 2 (karakter+ürün kombinasyonu için)"]
+                },
+                "🎨 Sanatsal & Soyut": {
+                    "best": "Kling AI",
+                    "reason": "Yaratıcı interpretasyon, sürreal hareketler ve deneysel görselleştirme",
+                    "settings": "Motion Strength: Varies 3-9, Atmosphere: Active, Experimental lens choices",
+                    "alternatives": ["NanoBananaPro (konsept oluşturma için)"]
+                },
+                "🏡 İç Mekan & Yaşam Alanları": {
+                    "best": "Veo 2",
+                    "reason": "İç mekan aydınlatması, gerçekçi doku ve yaşam alanı atmosferi",
+                    "settings": "Motion Strength: 3-5, Lighting: Natural Window/Soft, Focal: 24-35mm",
+                    "alternatives": ["Higgsfield (mimari showcase için)"]
+                }
+            }
+
+            if scene_type:
+                recommendation = model_recommendations[scene_type]
+
+                st.markdown("---")
+                st.success(f"**🎯 Önerilen Model: {recommendation['best']}**")
+
+                col_r1, col_r2 = st.columns(2)
+
+                with col_r1:
+                    st.markdown("**📋 Neden bu model?**")
+                    st.write(recommendation['reason'])
+
+                    st.markdown("**⚙️ Önerilen Ayarlar:**")
+                    st.code(recommendation['settings'], language=None)
+
+                with col_r2:
+                    st.markdown("**🔄 Alternatif Modeller:**")
+                    for alt in recommendation['alternatives']:
+                        st.caption(f"• {alt}")
+
+                    # Apply model selection
+                    if st.button(f"✅ {recommendation['best']} Kullan", use_container_width=True, type="primary"):
+                        # Map to actual provider names
+                        provider_map = {
+                            "Higgsfield": "Higgsfield",
+                            "Veo 2": "Veo",
+                            "Kling AI": "Kling",
+                            "NanoBananaPro": "NanoBananaPro"
+                        }
+
+                        best_model = recommendation['best']
+                        if best_model in provider_map:
+                            # Determine if it's video or image
+                            if "NanoBananaPro" in best_model:
+                                st.session_state.image_provider = provider_map[best_model]
+                            else:
+                                st.session_state.video_provider = provider_map[best_model]
+
+                            st.success(f"✅ {best_model} seçildi!")
+
+                st.markdown("---")
+                st.info("💡 **İpucu:** Model seçimini sahne tipine göre optimize etmek, daha iyi sonuç ve daha az deneme-yanılma demektir!")
+
+    st.markdown("---")
     st.markdown("#### 🛠️ Ekipman Seçimi")
 
     # 3 KOLONLU GRID YAPISI (HIGGSFIELD TARZI)
@@ -1984,6 +2931,158 @@ with t_studio:
 
 # --- TAB 2: STORYBOARD ---
 with t_board:
+    # SMART STORYBOARD GENERATOR
+    with st.expander("🧠 Smart Storyboard Generator", expanded=False):
+        st.caption("Senaryo → otomatik shot breakdown, timing hesaplama, gelişmiş AI analizi")
+
+        st.markdown("##### 📝 Senaryo Girişi")
+
+        # Script input modes
+        script_mode = st.radio(
+            "Giriş modu:",
+            ["✍️ Manuel Senaryo", "💡 Fikir Temelli", "📄 Sahne Açıklaması"],
+            horizontal=True,
+            key="smart_story_mode"
+        )
+
+        script_input = ""
+
+        if script_mode == "✍️ Manuel Senaryo":
+            script_input = st.text_area(
+                "Senaryo metni:",
+                placeholder="""Örnek senaryo:
+
+EXT. JAP ON BAHÇESİ - SABAH
+
+Karlı bir Japon bahçesi. Ağaçların dallarında kar birikmiş.
+
+BUDDHA HEYKELİ bahçenin ortasında sessizce duruyor. Güneş yavaşça doğuyor.
+
+Kamera yavaşça Buddha'ya yaklaşıyor. Kar taneleri havada dans ediyor.
+
+CLOSE-UP: Buddha'nın yüzü. Huzurlu bir gülümseme.
+
+Kamera geri çekiliyor, tüm bahçeyi gösteriyor. Mükemmel bir an.""",
+                height=250,
+                key="manual_script"
+            )
+
+        elif script_mode == "💡 Fikir Temelli":
+            col_idea1, col_idea2 = st.columns([2, 1])
+            with col_idea1:
+                script_input = st.text_area(
+                    "Fikir özeti:",
+                    placeholder="Örn: Karlı bir Japon bahçesinde Buddha heykeli, huzurlu atmosfer, sabah ışığı, zen mood",
+                    height=150,
+                    key="idea_script"
+                )
+            with col_idea2:
+                st.markdown("**Hedef:**")
+                target_option = st.selectbox(
+                    "Ne için?",
+                    ["Reklam (15-30s)", "Sosyal Medya (5-10s)", "Kısa Film (1-2 dak)", "Müzik Videosu"],
+                    key="target_select"
+                )
+                st.caption("AI bu hedefe göre shot breakdown yapacak")
+
+        else:  # Sahne Açıklaması
+            script_input = st.text_area(
+                "Sahne açıklaması:",
+                placeholder="Örn: Lüks bir restoranda akşam yemeği sahnesi. Romantik atmosfer, mum ışığı, şık giyimli çift.",
+                height=150,
+                key="scene_script"
+            )
+
+        st.markdown("---")
+
+        # Advanced options
+        adv_col1, adv_col2, adv_col3 = st.columns(3)
+
+        with adv_col1:
+            auto_shot_count = st.checkbox("Otomatik shot sayısı", value=True, key="auto_shot_count")
+            if not auto_shot_count:
+                manual_shot_count = st.number_input("Shot sayısı:", 2, 12, 6, key="manual_shot_num")
+
+        with adv_col2:
+            calculate_timing = st.checkbox("Timing otomatik hesapla", value=True, key="calc_timing")
+            if calculate_timing:
+                total_duration = st.number_input("Toplam süre (saniye):", 10, 120, 30, key="total_dur")
+
+        with adv_col3:
+            include_transitions = st.checkbox("Geçiş önerileri", value=True, key="include_trans")
+            suggest_audio = st.checkbox("Müzik & Ses Efekti", value=True, key="suggest_audio")
+
+        st.markdown("---")
+
+        # Generate button
+        if st.button("🎬 Smart Storyboard Oluştur", use_container_width=True, type="primary", key="gen_smart_story"):
+            if not api_key:
+                st.error("⚠️ Lütfen Gemini API Key gir!")
+            elif not script_input:
+                st.error("⚠️ Lütfen bir senaryo/fikir gir!")
+            else:
+                with st.spinner("🧠 AI akıllı storyboard oluşturuyor..."):
+                    # Build enhanced prompt for AI
+                    enhanced_prompt = f"""
+                    Senaryo/Fikir:
+                    {script_input}
+
+                    Görev: Bu senaryo/fikirden profesyonel bir storyboard oluştur.
+
+                    Format: JSON array olarak döndür, her shot için:
+                    {{
+                        "shot_number": int,
+                        "shot_type": str (Wide Shot, Close-Up, Medium Shot, etc.),
+                        "description": str (ne görülüyor, detaylı açıklama),
+                        "action": str (sahnede ne oluyor),
+                        "mood": str (sahnenin duygusal tonu),
+                        "suggested_movement": str (kamera hareketi),
+                        "suggested_lighting": str (ışık tipi),
+                        "duration": str (örn: "4s", "6s"),
+                        {'"transition": str (bir sonraki shota geçiş önerisi - fade/cut/dissolve/wipe),' if include_transitions else ""}
+                        {'"music": {{"genre": str, "mood": str, "tempo": str, "instruments": str, "envato_keywords": str}},' if suggest_audio else ""}
+                        {'"sound_effects": {{"effects": [list of specific sounds], "atmosphere": str, "envato_keywords": str}},' if suggest_audio else ""}
+                        "timing_notes": str (neden bu süre, ne zaman hızlan/yavaşla)
+                    }}
+
+                    Önemli:
+                    - {"Shot sayısını otomatik belirle (içerik karmaşıklığına göre)" if auto_shot_count else f"Tam {manual_shot_count} shot oluştur"}
+                    - {"Her shot'ın süresini toplam " + str(total_duration) + " saniye olacak şekilde hesapla" if calculate_timing else "Her shot için uygun süre öner"}
+                    - Sahne geçişlerinde mantık kur (establishment shot → action → close-up → wide)
+                    - Sinematik kurallara uy (180 degree rule, continuity, pacing)
+                    - Her shot için teknik kamera parametreleri öner
+                    {"- Müzik: genre, mood, tempo (BPM), instruments öneri" if suggest_audio else ""}
+                    {"- Ses Efektleri: shot'a özel sesler, atmosfer sesleri" if suggest_audio else ""}
+                    {"- Envato Keywords: Envato Elements'te arama için kelimeleri İngilizce ver (örn: 'zen ambient music', 'snow footsteps sfx')" if suggest_audio else ""}
+
+                    Sadece JSON array döndür, başka açıklama ekleme.
+                    """
+
+                    try:
+                        genai.configure(api_key=api_key)
+                        model = genai.GenerativeModel('gemini-2.5-flash')
+                        response = model.generate_content(enhanced_prompt)
+
+                        # Parse JSON response
+                        import re
+                        json_match = re.search(r'\[.*\]', response.text, re.DOTALL)
+
+                        if json_match:
+                            shots = json.loads(json_match.group())
+                            st.session_state['shots'] = shots
+                            st.success(f"✅ {len(shots)} shot başarıyla oluşturuldu!")
+
+                            # Show summary
+                            total_est_duration = sum([int(s.get('duration', '4s').replace('s', '')) for s in shots])
+                            st.info(f"📊 Tahmini toplam süre: {total_est_duration} saniye")
+
+                            st.rerun()
+                        else:
+                            st.error("❌ AI'dan geçerli JSON alınamadı. Lütfen tekrar dene.")
+
+                    except Exception as e:
+                        st.error(f"❌ Hata: {str(e)}")
+
     # Reference Images Section
     with st.expander("📸 Referans Görselleri", expanded=False):
         st.caption("Storyboard oluştururken referans görselleri buraya yükleyebilirsin")
@@ -2140,10 +3239,47 @@ with t_board:
                     st.markdown(f"**Action:** {shot.get('action', 'N/A')}")
                     st.markdown(f"**Mood:** {shot.get('mood', 'N/A')}")
 
+                    # Transition info
+                    if shot.get('transition'):
+                        st.markdown(f"**Geçiş:** {shot.get('transition')}")
+
                 with col_shot_right:
                     st.markdown(f"**Movement:** {shot.get('suggested_movement', 'Static')}")
                     st.markdown(f"**Lighting:** {shot.get('suggested_lighting', 'Natural')}")
                     st.markdown(f"**Duration:** {shot.get('duration', '4s')}")
+
+                # Music & Sound Effects Section
+                if shot.get('music') or shot.get('sound_effects'):
+                    st.markdown("---")
+                    audio_col1, audio_col2 = st.columns(2)
+
+                    with audio_col1:
+                        if shot.get('music'):
+                            st.markdown("##### 🎵 Müzik")
+                            music = shot['music']
+                            st.caption(f"**Tür:** {music.get('genre', 'N/A')}")
+                            st.caption(f"**Mood:** {music.get('mood', 'N/A')}")
+                            st.caption(f"**Tempo:** {music.get('tempo', 'N/A')}")
+                            st.caption(f"**Enstrüman:** {music.get('instruments', 'N/A')}")
+
+                            if music.get('envato_keywords'):
+                                st.code(f"🔍 Envato: {music['envato_keywords']}", language=None)
+
+                    with audio_col2:
+                        if shot.get('sound_effects'):
+                            st.markdown("##### 🔊 Ses Efektleri")
+                            sfx = shot['sound_effects']
+
+                            if sfx.get('effects'):
+                                st.caption("**Efektler:**")
+                                for effect in sfx['effects']:
+                                    st.caption(f"• {effect}")
+
+                            if sfx.get('atmosphere'):
+                                st.caption(f"**Atmosfer:** {sfx['atmosphere']}")
+
+                            if sfx.get('envato_keywords'):
+                                st.code(f"🔍 Envato: {sfx['envato_keywords']}", language=None)
 
                     shot_btn_col1, shot_btn_col2 = st.columns(2)
                     with shot_btn_col1:
@@ -2175,47 +3311,699 @@ with t_board:
     else:
         st.info("👆 Yukarıdan bir fikir gir ve 'Generate Storyboard' butonuna bas!")
 
-# --- TAB 3: VIDEO RENDER ---
+# --- TAB 3.5: IMAGE (8 ANGLE PROMPT GENERATOR) ---
+with t_image:
+    st.markdown("# 🖼️ IMAGE - 8 Angle Prompt Generator")
+    st.caption("Generate character prompts from 8 different camera angles")
+
+    st.markdown("---")
+
+    # Center: Reference Image Upload
+    st.markdown("### 📷 Reference Image")
+
+    col_spacer1, col_center, col_spacer2 = st.columns([0.5, 2, 0.5])
+
+    with col_center:
+        if st.session_state['uploaded_img']:
+            st.image(st.session_state['uploaded_img'], caption="Reference Character", use_column_width=True)
+        else:
+            st.info("⚠️ Please upload a reference image from sidebar first")
+
+    st.markdown("---")
+
+    # 8 Angle Buttons Grid (4x2)
+    st.markdown("### 🎯 Select Camera Angles")
+    st.caption("Click on angles to generate prompts for character consistency")
+
+    angle_definitions = [
+        {
+            "name": "Wide Shot",
+            "emoji": "🌄",
+            "desc": "Full body, establishing shot",
+            "prompt_template": "wide shot, full body view, {character_desc}, cinematic lighting, professional photography"
+        },
+        {
+            "name": "Medium Shot",
+            "emoji": "👤",
+            "desc": "Waist up, character focused",
+            "prompt_template": "medium shot, waist up view, {character_desc}, portrait photography, shallow depth of field"
+        },
+        {
+            "name": "Close-Up",
+            "emoji": "😊",
+            "desc": "Face detail, emotional",
+            "prompt_template": "close-up shot, face detail, {character_desc}, emotional expression, soft lighting"
+        },
+        {
+            "name": "Extreme Close-Up",
+            "emoji": "👁️",
+            "desc": "Eyes, hands, details",
+            "prompt_template": "extreme close-up, detailed view, {character_desc}, macro photography, sharp focus"
+        },
+        {
+            "name": "Over-the-Shoulder",
+            "emoji": "🎭",
+            "desc": "Conversation perspective",
+            "prompt_template": "over-the-shoulder shot, {character_desc}, cinematic angle, depth of field"
+        },
+        {
+            "name": "Low Angle",
+            "emoji": "⬆️",
+            "desc": "Power, dominance view",
+            "prompt_template": "low angle shot, looking up at {character_desc}, dramatic perspective, powerful composition"
+        },
+        {
+            "name": "High Angle",
+            "emoji": "⬇️",
+            "desc": "Vulnerability, overview",
+            "prompt_template": "high angle shot, looking down at {character_desc}, bird's eye perspective, cinematic"
+        },
+        {
+            "name": "Dutch Angle",
+            "emoji": "🔄",
+            "desc": "Tension, dynamic tilt",
+            "prompt_template": "dutch angle, tilted shot, {character_desc}, dynamic composition, cinematic tension"
+        }
+    ]
+
+    # Initialize selected angles in session state
+    if 'selected_angles' not in st.session_state:
+        st.session_state['selected_angles'] = []
+
+    # Display 8 angle buttons in compact 4x2 grid
+    st.markdown("""
+        <style>
+        div[data-testid="stButton"] > button {
+            padding: 8px 12px !important;
+            font-size: 0.85em !important;
+            height: auto !important;
+            min-height: 40px !important;
+            white-space: normal !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    angle_row1 = st.columns(4, gap="small")
+    angle_row2 = st.columns(4, gap="small")
+
+    for i, angle in enumerate(angle_definitions[:4]):
+        with angle_row1[i]:
+            is_selected = angle['name'] in st.session_state['selected_angles']
+            if st.button(
+                f"{angle['emoji']} {angle['name'].upper()}",
+                key=f"angle_btn_{i}",
+                use_container_width=True,
+                type="primary" if is_selected else "secondary",
+                help=angle['desc']
+            ):
+                if is_selected:
+                    st.session_state['selected_angles'].remove(angle['name'])
+                else:
+                    st.session_state['selected_angles'].append(angle['name'])
+                st.rerun()
+
+    for i, angle in enumerate(angle_definitions[4:], start=4):
+        with angle_row2[i-4]:
+            is_selected = angle['name'] in st.session_state['selected_angles']
+            if st.button(
+                f"{angle['emoji']} {angle['name'].upper()}",
+                key=f"angle_btn_{i}",
+                use_container_width=True,
+                type="primary" if is_selected else "secondary",
+                help=angle['desc']
+            ):
+                if is_selected:
+                    st.session_state['selected_angles'].remove(angle['name'])
+                else:
+                    st.session_state['selected_angles'].append(angle['name'])
+                st.rerun()
+
+    st.markdown("---")
+
+    # Camera and Lens Selection
+    st.markdown("### 📹 Camera & Lens Settings")
+    st.caption("Select camera and lens for professional cinematic look")
+
+    cam_lens_col1, cam_lens_col2 = st.columns(2)
+
+    with cam_lens_col1:
+        st.markdown("**📹 Camera**")
+        camera_names = [cam['name'] for cam in CAMERAS]
+        selected_camera_idx = st.selectbox(
+            "Select Camera",
+            range(len(camera_names)),
+            format_func=lambda i: f"{CAMERAS[i]['icon']} {camera_names[i]}",
+            key="image_camera_select",
+            label_visibility="collapsed"
+        )
+        selected_camera = CAMERAS[selected_camera_idx]
+
+    with cam_lens_col2:
+        st.markdown("**🔭 Lens**")
+        lens_names = [lens['name'] for lens in LENSES]
+        selected_lens_idx = st.selectbox(
+            "Select Lens",
+            range(len(lens_names)),
+            format_func=lambda i: f"{lens_names[i]} ({LENSES[i]['char']})",
+            key="image_lens_select",
+            label_visibility="collapsed"
+        )
+        selected_lens = LENSES[selected_lens_idx]
+
+    # Show selected equipment info
+    equip_info_col1, equip_info_col2 = st.columns(2)
+    with equip_info_col1:
+        st.info(f"**Camera:** {selected_camera['name']} - {selected_camera['type']}")
+    with equip_info_col2:
+        st.info(f"**Lens:** {selected_lens['name']} - {selected_lens['char']}")
+
+    st.markdown("---")
+
+    # Character Description Input
+    st.markdown("### ✍️ Character Description")
+    character_desc = st.text_area(
+        "Describe your character/scene (simple or detailed)",
+        placeholder="Example: modern bir kadın bebek arabası ile park da yürüyor ve bebek arasının tanıtım filmini yapıyor...",
+        height=120,
+        key="character_description"
+    )
+
+    # AI Enhancement Feature
+    enhance_col1, enhance_col2, enhance_col3 = st.columns([1, 1, 1])
+    with enhance_col2:
+        if st.button("🤖 ENHANCE WITH AI", use_container_width=True, key="enhance_ai_btn"):
+            if not character_desc:
+                st.error("⚠️ Please enter a description first!")
+            else:
+                with st.spinner("🤖 AI is enhancing your description..."):
+                    try:
+                        # Call Gemini API to enhance the description
+                        api_key = st.session_state.get('gemini_api_key')
+                        if not api_key:
+                            st.error("⚠️ Please add your Gemini API key in SISTEM tab!")
+                        else:
+                            genai.configure(api_key=api_key)
+                            model = genai.GenerativeModel('gemini-2.5-flash')
+
+                            enhancement_prompt = f"""You are a professional cinematographer and prompt engineer.
+Enhance this rough character/scene description into a detailed, professional cinematic prompt suitable for AI image generation.
+
+Input description: "{character_desc}"
+
+Create a detailed, professional description that includes:
+- Physical appearance details
+- Clothing and style
+- Environment and setting
+- Lighting and mood
+- Camera quality (professional, cinematic)
+- Any relevant context for a promotional/commercial shoot
+
+Keep it concise but detailed. Write in English. Focus on visual details.
+
+Enhanced description:"""
+
+                            response = model.generate_content(enhancement_prompt)
+                            enhanced_text = response.text.strip()
+
+                            # Store enhanced description
+                            st.session_state['enhanced_character_desc'] = enhanced_text
+                            st.success("✅ Description enhanced by AI!")
+                            st.rerun()
+
+                    except Exception as e:
+                        st.error(f"❌ AI Enhancement failed: {str(e)}")
+
+    # Show enhanced description if available
+    if 'enhanced_character_desc' in st.session_state and st.session_state['enhanced_character_desc']:
+        st.markdown("#### 🤖 AI Enhanced Description")
+        st.info(st.session_state['enhanced_character_desc'])
+
+        if st.button("❌ Clear Enhanced Version", key="clear_enhanced"):
+            del st.session_state['enhanced_character_desc']
+            st.rerun()
+
+    st.markdown("---")
+
+    # Generate Prompts Button
+    gen_col1, gen_col2, gen_col3 = st.columns([1, 1, 1])
+    with gen_col2:
+        if st.button("🎬 GENERATE PROMPTS", use_container_width=True, type="primary", key="gen_prompts_btn"):
+            if not character_desc:
+                st.error("⚠️ Please enter a character description first!")
+            elif len(st.session_state['selected_angles']) == 0:
+                st.error("⚠️ Please select at least one camera angle!")
+            else:
+                # Use enhanced description if available, otherwise use original
+                final_desc = st.session_state.get('enhanced_character_desc', character_desc)
+
+                # Add camera and lens info to description
+                camera_info = f"shot on {selected_camera['name']}, {selected_lens['name']} lens, {selected_lens['char']}"
+                full_desc = f"{final_desc}, {camera_info}"
+
+                st.session_state['generated_angle_prompts'] = {}
+                for angle in angle_definitions:
+                    if angle['name'] in st.session_state['selected_angles']:
+                        prompt = angle['prompt_template'].replace("{character_desc}", full_desc)
+                        st.session_state['generated_angle_prompts'][angle['name']] = prompt
+
+                if 'enhanced_character_desc' in st.session_state:
+                    st.success(f"✅ Generated {len(st.session_state['generated_angle_prompts'])} prompts using AI-enhanced description!")
+                else:
+                    st.success(f"✅ Generated {len(st.session_state['generated_angle_prompts'])} prompts!")
+
+    # Display Generated Prompts - INDIVIDUAL COPY FOR EACH
+    if 'generated_angle_prompts' in st.session_state and len(st.session_state['generated_angle_prompts']) > 0:
+        st.markdown("---")
+        st.markdown("### 📝 Generated Prompts")
+        st.caption(f"{len(st.session_state['generated_angle_prompts'])} açı için prompt oluşturuldu - Her birini ayrı kopyalayabilirsin")
+
+        # Display each prompt individually with copy instructions
+        for angle_name, prompt in st.session_state['generated_angle_prompts'].items():
+            angle_data = next((a for a in angle_definitions if a['name'] == angle_name), None)
+            if angle_data:
+                # Header for each angle
+                st.markdown(f"#### {angle_data['emoji']} {angle_name.upper()}")
+
+                # Prompt in code block (easy to select and copy)
+                st.code(prompt, language=None)
+
+                # Small instruction
+                st.caption("☝️ Prompt'u kopyalamak için: Kod kutusuna tıkla → Ctrl+A (tümünü seç) → Ctrl+C (kopyala)")
+
+                st.markdown("---")
+
+# --- TAB 4: VIDEO RENDER ---
 with t_video:
-    st.subheader("🍌 Nano Banana: Video Production")
+    st.markdown("# 🎬 VIDEO - CINEMA STUDIO")
+    st.caption("Professional video production system")
 
-    # Video Settings Panel
-    st.markdown("### ⚙️ Video Settings")
-    settings_col1, settings_col2, settings_col3, settings_col4 = st.columns(4)
+    st.markdown("---")
 
-    with settings_col1:
+    # ===== 3-MODE SELECTION SYSTEM =====
+    mode_col1, mode_col2, mode_col3 = st.columns(3)
+
+    if 'video_mode' not in st.session_state:
+        st.session_state['video_mode'] = 'SHOT_GENERATOR'
+
+    with mode_col1:
+        if st.button("🎯 SHOT GENERATOR\n8 Angle System", key="mode_shot", use_container_width=True,
+                     type="primary" if st.session_state['video_mode'] == 'SHOT_GENERATOR' else "secondary"):
+            st.session_state['video_mode'] = 'SHOT_GENERATOR'
+            st.rerun()
+
+    with mode_col2:
+        if st.button("🖼️ IMAGE → VIDEO\nQuick Conversion", key="mode_img2vid", use_container_width=True,
+                     type="primary" if st.session_state['video_mode'] == 'IMAGE_TO_VIDEO' else "secondary"):
+            st.session_state['video_mode'] = 'IMAGE_TO_VIDEO'
+            st.rerun()
+
+    with mode_col3:
+        if st.button("✍️ TEXT → VIDEO\nText to Video", key="mode_txt2vid", use_container_width=True,
+                     type="primary" if st.session_state['video_mode'] == 'TEXT_TO_VIDEO' else "secondary"):
+            st.session_state['video_mode'] = 'TEXT_TO_VIDEO'
+            st.rerun()
+
+    st.markdown("---")
+
+    # ===== BATCH PROCESSING PIPELINE =====
+    with st.expander("📦 Batch Processing Pipeline", expanded=False):
+        st.caption("Toplu video üretimi - Queue yönetimi, otomatik retry ve ilerleme takibi")
+
+        # Queue Statistics Dashboard
+        stats = get_queue_stats()
+
+        stat_col1, stat_col2, stat_col3, stat_col4, stat_col5 = st.columns(5)
+        with stat_col1:
+            st.metric("📊 Toplam", stats['total'])
+        with stat_col2:
+            st.metric("⏳ Bekliyor", stats['pending'])
+        with stat_col3:
+            st.metric("⚙️ İşleniyor", stats['processing'])
+        with stat_col4:
+            st.metric("✅ Tamamlandı", stats['completed'])
+        with stat_col5:
+            st.metric("❌ Başarısız", stats['failed'])
+
+        st.markdown("---")
+
+        # Queue Settings
+        queue_col1, queue_col2, queue_col3 = st.columns(3)
+
+        with queue_col1:
+            st.markdown("**⚙️ Otomatik Retry**")
+            st.session_state.auto_retry_enabled = st.checkbox(
+                "Başarısız görevleri otomatik tekrar dene",
+                value=st.session_state.auto_retry_enabled,
+                key="auto_retry_toggle"
+            )
+
+            if st.session_state.auto_retry_enabled:
+                st.session_state.max_retry_attempts = st.number_input(
+                    "Maksimum deneme sayısı:",
+                    min_value=1,
+                    max_value=10,
+                    value=st.session_state.max_retry_attempts,
+                    key="max_retry_input"
+                )
+
+        with queue_col2:
+            st.markdown("**🔄 Otomatik İşleme**")
+            st.session_state.queue_auto_process = st.checkbox(
+                "Queue'daki görevleri otomatik işle",
+                value=st.session_state.queue_auto_process,
+                key="auto_process_toggle"
+            )
+
+            if st.session_state.queue_auto_process:
+                st.info("🤖 Otomatik işleme aktif - görevler sırayla işlenecek")
+
+        with queue_col3:
+            st.markdown("**🗑️ Temizlik**")
+            if st.button("Tamamlananları Temizle", use_container_width=True, key="clear_completed_btn"):
+                clear_completed_tasks()
+                st.success("✅ Tamamlanan görevler temizlendi!")
+                st.rerun()
+
+            if st.button("Tüm Queue'yu Temizle", use_container_width=True, key="clear_all_btn"):
+                st.session_state.generation_queue = []
+                st.success("✅ Tüm queue temizlendi!")
+                st.rerun()
+
+        st.markdown("---")
+
+        # Queue Task List
+        if st.session_state.generation_queue and len(st.session_state.generation_queue) > 0:
+            st.markdown("##### 📋 Queue'daki Görevler")
+
+            for idx, task in enumerate(st.session_state.generation_queue):
+                with st.container():
+                    task_col1, task_col2, task_col3, task_col4 = st.columns([2, 3, 2, 2])
+
+                    with task_col1:
+                        # Status indicator
+                        status_emoji = {
+                            'pending': '⏳',
+                            'processing': '⚙️',
+                            'completed': '✅',
+                            'failed': '❌'
+                        }
+                        st.markdown(f"**{status_emoji.get(task['status'], '❓')} Task #{idx + 1}**")
+                        st.caption(f"Tip: {task['type']}")
+                        st.caption(f"Oluşturulma: {task.get('created_at', 'N/A')}")
+
+                    with task_col2:
+                        st.caption(f"**Prompt:**")
+                        prompt_preview = task.get('prompt', 'N/A')
+                        if len(prompt_preview) > 80:
+                            prompt_preview = prompt_preview[:80] + "..."
+                        st.caption(f"_{prompt_preview}_")
+
+                        if task['status'] == 'failed' and task.get('error'):
+                            st.error(f"Hata: {task['error']}")
+
+                    with task_col3:
+                        st.caption(f"**Durum:** {task['status'].upper()}")
+                        st.caption(f"**Denemeler:** {task.get('attempts', 0)}/{task.get('max_attempts', 3)}")
+
+                        # Progress bar for processing tasks
+                        if task['status'] == 'processing':
+                            st.progress(0.5)
+
+                    with task_col4:
+                        # Action buttons
+                        if task['status'] == 'pending':
+                            if st.button("▶️ İşle", key=f"process_task_{idx}", use_container_width=True):
+                                task['status'] = 'processing'
+                                st.rerun()
+
+                        elif task['status'] == 'failed':
+                            if st.button("🔄 Tekrar Dene", key=f"retry_task_{idx}", use_container_width=True):
+                                retry_failed_task(task['id'])
+                                st.success("✅ Görev yeniden kuyruğa eklendi!")
+                                st.rerun()
+
+                        if st.button("🗑️ Sil", key=f"delete_task_{idx}", use_container_width=True):
+                            remove_from_queue(task['id'])
+                            st.rerun()
+
+                    st.divider()
+
+            # Batch Actions
+            st.markdown("---")
+            st.markdown("##### ⚡ Toplu İşlemler")
+            batch_col1, batch_col2, batch_col3 = st.columns(3)
+
+            with batch_col1:
+                if st.button("▶️ Tüm Bekleyenleri İşle", use_container_width=True, type="primary"):
+                    for task in st.session_state.generation_queue:
+                        if task['status'] == 'pending':
+                            task['status'] = 'processing'
+                    st.success("✅ Tüm bekleyen görevler işleniyor!")
+                    st.rerun()
+
+            with batch_col2:
+                if st.button("🔄 Tüm Başarısızları Tekrarla", use_container_width=True):
+                    retry_count = 0
+                    for task in st.session_state.generation_queue:
+                        if task['status'] == 'failed':
+                            retry_failed_task(task['id'])
+                            retry_count += 1
+                    if retry_count > 0:
+                        st.success(f"✅ {retry_count} görev yeniden kuyruğa eklendi!")
+                        st.rerun()
+                    else:
+                        st.info("Başarısız görev yok!")
+
+            with batch_col3:
+                if st.button("⏸️ Tüm İşlemleri Durdur", use_container_width=True):
+                    for task in st.session_state.generation_queue:
+                        if task['status'] == 'processing':
+                            task['status'] = 'pending'
+                    st.warning("⏸️ Tüm işlemler durduruldu!")
+                    st.rerun()
+
+        else:
+            st.info("👋 Queue boş! Görev eklemek için aşağıdaki modlardan birini kullan ve 'Add to Queue' butonuna tıkla.")
+
+    st.markdown("---")
+
+    # ===== MODE: SHOT GENERATOR (8 Angle System) =====
+    if st.session_state['video_mode'] == 'SHOT_GENERATOR':
+        st.markdown("### 🎯 SHOT GENERATOR - 8 Professional Angles")
+        st.caption("Generate videos with cinematic camera angles")
+
+        shot_angles = [
+            {"name": "Wide Shot", "icon": "🌄", "desc": "Establishing full scene context"},
+            {"name": "Medium Shot", "icon": "👤", "desc": "Waist up, character focused"},
+            {"name": "Close-Up", "icon": "😊", "desc": "Face detail, emotional"},
+            {"name": "Extreme Close-Up", "icon": "👁️", "desc": "Detail focus (eyes, hands)"},
+            {"name": "Over-the-Shoulder", "icon": "🎭", "desc": "Conversation perspective"},
+            {"name": "Low Angle", "icon": "⬆️", "desc": "Power, dominance view"},
+            {"name": "High Angle", "icon": "⬇️", "desc": "Vulnerability, overview"},
+            {"name": "Dutch Angle", "icon": "🔄", "desc": "Tension, unease, dynamic"}
+        ]
+
+        angle_cols = st.columns(4)
+        for i, angle in enumerate(shot_angles):
+            with angle_cols[i % 4]:
+                if st.button(f"{angle['icon']} {angle['name']}", key=f"angle_{i}", use_container_width=True):
+                    st.session_state['selected_angle'] = angle['name']
+                    st.info(f"**{angle['name']}** selected: {angle['desc']}")
+
+        st.markdown("---")
+        st.markdown("#### Selected Angle Settings")
+        if 'selected_angle' in st.session_state:
+            st.success(f"🎥 Current: **{st.session_state['selected_angle']}**")
+        else:
+            st.warning("Please select an angle above")
+
+        st.markdown("---")
+
+        # Reference Image and Video Generation
+        shot_col1, shot_col2 = st.columns([1, 1])
+
+        with shot_col1:
+            st.markdown("#### 🖼️ Reference Image")
+            if st.session_state['uploaded_img']:
+                st.image(st.session_state['uploaded_img'], caption="Source Image", use_column_width=True)
+            else:
+                st.warning("⚠️ Please upload an image from sidebar first")
+
+        with shot_col2:
+            st.markdown("#### 🎬 Shot Generation")
+            if 'selected_angle' in st.session_state:
+                st.info(f"**Angle:** {st.session_state['selected_angle']}")
+            else:
+                st.info("**Angle:** Not selected")
+
+            st.markdown("**Camera Movement:**")
+            camera_move = st.selectbox(
+                "Movement",
+                ["Static", "Slow Pan", "Zoom In", "Zoom Out", "Dolly", "Tracking"],
+                key="shot_camera_move",
+                label_visibility="collapsed"
+            )
+
+            st.markdown("**Intensity:**")
+            shot_intensity = st.slider("Shot Intensity", 1, 10, 5, key="shot_intensity")
+
+            st.markdown("---")
+
+            gen_shot_col1, gen_shot_col2 = st.columns(2)
+            with gen_shot_col1:
+                if st.button("🎬 GENERATE SHOT", use_container_width=True, type="primary", key="gen_shot_btn"):
+                    if not st.session_state['uploaded_img']:
+                        st.error("Please upload an image first!")
+                    elif 'selected_angle' not in st.session_state:
+                        st.error("Please select a camera angle!")
+                    else:
+                        with st.spinner(f"Generating {st.session_state['selected_angle']} shot..."):
+                            time.sleep(2)
+                            st.success(f"✅ {st.session_state['selected_angle']} video generated!")
+
+            with gen_shot_col2:
+                if st.button("➕ Add to Queue", use_container_width=True, key="shot_queue_btn"):
+                    if not st.session_state['uploaded_img']:
+                        st.error("Please upload an image first!")
+                    elif 'selected_angle' not in st.session_state:
+                        st.error("Please select a camera angle!")
+                    else:
+                        # Create task and add to queue
+                        task_id = str(uuid.uuid4())
+                        task_data = {
+                            'id': task_id,
+                            'type': 'shot_generator',
+                            'prompt': f"{st.session_state['selected_angle']} shot with {camera_move} camera movement",
+                            'settings': {
+                                'angle': st.session_state['selected_angle'],
+                                'camera_move': camera_move,
+                                'intensity': shot_intensity,
+                                'aspect_ratio': st.session_state.aspect_ratio,
+                                'duration': st.session_state.duration,
+                                'fps': st.session_state.fps,
+                                'motion_strength': st.session_state.motion_strength
+                            },
+                            'max_attempts': st.session_state.max_retry_attempts
+                        }
+                        add_to_queue(task_data)
+                        st.success(f"✅ Task eklendi! Queue'da {len(st.session_state.generation_queue)} görev var.")
+                        st.rerun()
+
+    # ===== MODE: IMAGE → VIDEO =====
+    elif st.session_state['video_mode'] == 'IMAGE_TO_VIDEO':
+        st.markdown("### 🖼️ IMAGE → VIDEO - Quick Conversion")
+        st.caption("Fast image-to-video transformation")
+
+        if st.session_state['uploaded_img']:
+            st.image(st.session_state['uploaded_img'], caption="Source Image", use_column_width=True)
+        else:
+            st.warning("⚠️ Please upload an image from sidebar first")
+
+        st.markdown("#### Quick Settings")
+        quick_col1, quick_col2 = st.columns(2)
+        with quick_col1:
+            quick_duration = st.selectbox("Duration", ["2s", "4s", "6s"], key="quick_dur")
+            quick_motion = st.slider("Motion Intensity", 1, 10, 5, key="quick_motion")
+        with quick_col2:
+            quick_style = st.selectbox("Style", ["Cinematic", "Dynamic", "Smooth", "Epic"], key="quick_style")
+            quick_ar = st.selectbox("Aspect Ratio", ["16:9", "9:16", "1:1"], key="quick_ar")
+
+        if st.button("⚡ GENERATE VIDEO (Fast)", use_container_width=True, type="primary"):
+            if st.session_state['uploaded_img']:
+                with st.spinner("Converting image to video..."):
+                    time.sleep(1.5)
+                    st.success("✅ Video generated successfully!")
+            else:
+                st.error("Please upload an image first!")
+
+    # ===== MODE: TEXT → VIDEO =====
+    elif st.session_state['video_mode'] == 'TEXT_TO_VIDEO':
+        st.markdown("### ✍️ TEXT → VIDEO - Text to Video Generation")
+        st.caption("Create videos from text descriptions")
+
+        text_prompt = st.text_area(
+            "Video Description",
+            placeholder="Describe your video scene in detail...\nExample: A cinematic shot of a sunset over mountains, golden hour lighting, slow camera pan",
+            height=150,
+            key="text2vid_prompt"
+        )
+
+        st.markdown("#### Generation Settings")
+        text_col1, text_col2, text_col3 = st.columns(3)
+        with text_col1:
+            text_duration = st.selectbox("Duration", ["4s", "6s", "8s", "10s"], key="text_dur")
+        with text_col2:
+            text_ar = st.selectbox("Aspect Ratio", ["16:9", "9:16", "1:1", "21:9"], key="text_ar")
+        with text_col3:
+            text_quality = st.selectbox("Quality", ["Standard", "High", "Ultra"], key="text_quality")
+
+        st.markdown("#### Style Presets")
+        style_col1, style_col2, style_col3, style_col4 = st.columns(4)
+        with style_col1:
+            if st.button("🎬 Cinematic", use_container_width=True):
+                st.session_state['text2vid_style'] = "cinematic"
+        with style_col2:
+            if st.button("🌈 Vibrant", use_container_width=True):
+                st.session_state['text2vid_style'] = "vibrant"
+        with style_col3:
+            if st.button("🎨 Artistic", use_container_width=True):
+                st.session_state['text2vid_style'] = "artistic"
+        with style_col4:
+            if st.button("⚡ Dynamic", use_container_width=True):
+                st.session_state['text2vid_style'] = "dynamic"
+
+        if st.button("🎬 GENERATE VIDEO FROM TEXT", use_container_width=True, type="primary"):
+            if text_prompt:
+                with st.spinner("Generating video from text..."):
+                    time.sleep(2)
+                    st.success("✅ Text-to-video generation started!")
+                    st.info(f"Style: {st.session_state.get('text2vid_style', 'Default')} | {text_duration} | {text_ar}")
+            else:
+                st.error("Please enter a text description!")
+
+    st.markdown("---")
+
+    # ===== COMMON VIDEO SETTINGS (Shared across all modes) =====
+    st.markdown("### ⚙️ Advanced Video Settings")
+    common_col1, common_col2, common_col3, common_col4 = st.columns(4)
+
+    with common_col1:
         st.markdown("**Aspect Ratio**")
         st.session_state.aspect_ratio = st.selectbox(
             "AR",
             ["16:9", "9:16", "1:1", "21:9", "4:3"],
             index=["16:9", "9:16", "1:1", "21:9", "4:3"].index(st.session_state.aspect_ratio),
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            key="common_ar"
         )
 
-    with settings_col2:
+    with common_col2:
         st.markdown("**Duration**")
         st.session_state.duration = st.selectbox(
             "Dur",
             ["2s", "4s", "6s", "8s", "10s"],
             index=["2s", "4s", "6s", "8s", "10s"].index(st.session_state.duration),
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            key="common_dur"
         )
 
-    with settings_col3:
+    with common_col3:
         st.markdown("**FPS**")
         st.session_state.fps = st.selectbox(
             "FPS",
             [24, 30, 60],
             index=[24, 30, 60].index(st.session_state.fps),
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            key="common_fps"
         )
 
-    with settings_col4:
+    with common_col4:
         st.markdown("**Motion Strength**")
         st.session_state.motion_strength = st.slider(
             "Motion",
             1, 10, st.session_state.motion_strength,
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            key="common_motion"
         )
 
     st.markdown("---")
