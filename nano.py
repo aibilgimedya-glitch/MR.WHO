@@ -3664,72 +3664,61 @@ Enhanced description:"""
         </div>
         """.replace('{count}', str(len(st.session_state['generated_angle_prompts']))), unsafe_allow_html=True)
 
-        # Prompt Cards Styling
+        # Prompt Cards with Glass Button Styling
         st.markdown("""
         <style>
-        .prompt-card {
-            background: linear-gradient(145deg, rgba(25,25,25,0.95), rgba(15,15,15,0.95));
-            border: 2px solid rgba(237, 21, 114, 0.4);
-            border-radius: 15px;
-            padding: 25px;
-            margin: 15px 0;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        /* Glass Copy Button */
+        div[data-testid="column"] > div > div > button[kind="secondary"] {
+            background: linear-gradient(135deg, rgba(0, 217, 255, 0.15), rgba(209, 254, 23, 0.15)) !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+            border: 1px solid rgba(0, 217, 255, 0.3) !important;
+            border-radius: 8px !important;
+            padding: 8px 12px !important;
+            font-size: 1.2em !important;
+            color: #00d9ff !important;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+            transition: all 0.3s ease !important;
         }
-        .prompt-header {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 15px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid rgba(0, 217, 255, 0.2);
-        }
-        .prompt-emoji {
-            font-size: 2.5em;
-        }
-        .prompt-title {
-            font-size: 1.3em;
-            font-weight: 800;
-            letter-spacing: 0.1em;
-            color: #d1fe17;
-        }
-        .prompt-text {
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(0, 217, 255, 0.3);
-            border-radius: 8px;
-            padding: 15px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.95em;
-            line-height: 1.6;
-            color: #E0E0E0;
-            word-wrap: break-word;
-        }
-        .copy-hint {
-            text-align: center;
-            color: #666;
-            font-size: 0.85em;
-            margin-top: 10px;
-            font-style: italic;
+        div[data-testid="column"] > div > div > button[kind="secondary"]:hover {
+            background: linear-gradient(135deg, rgba(0, 217, 255, 0.3), rgba(209, 254, 23, 0.3)) !important;
+            border-color: #d1fe17 !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 20px rgba(209, 254, 23, 0.4) !important;
         }
         </style>
         """, unsafe_allow_html=True)
 
-        # Display each prompt in visual card format
+        # Display each prompt with copy button
         for angle_name, prompt in st.session_state['generated_angle_prompts'].items():
             angle_data = next((a for a in angle_definitions if a['name'] == angle_name), None)
             if angle_data:
-                st.markdown(f"""
-                <div class="prompt-card">
-                    <div class="prompt-header">
-                        <span class="prompt-emoji">{angle_data['emoji']}</span>
+                # Header with emoji, title, and copy button
+                col_header, col_button = st.columns([0.85, 0.15])
+
+                with col_header:
+                    st.markdown(f"""
+                    <div style="display: flex; align-items: center; gap: 15px; padding: 15px 0 10px 0;">
+                        <span style="font-size: 2.5em;">{angle_data['emoji']}</span>
                         <div>
-                            <div class="prompt-title">{angle_name.upper()}</div>
+                            <div style="font-size: 1.3em; font-weight: 800; letter-spacing: 0.1em; color: #d1fe17;">
+                                {angle_name.upper()}
+                            </div>
                             <div style="color: #888; font-size: 0.9em;">{angle_data['desc']}</div>
                         </div>
                     </div>
-                    <div class="prompt-text">{prompt}</div>
-                    <div class="copy-hint">💡 Click inside the box → Ctrl/Cmd+A → Ctrl/Cmd+C to copy</div>
-                </div>
-                """, unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
+
+                with col_button:
+                    # Glass effect copy button
+                    st.button("📋 Copy", key=f"copy_{angle_name}",
+                             type="secondary",
+                             use_container_width=True)
+
+                # Prompt text area - easy to select all
+                st.code(prompt, language=None)
+
+                st.markdown("---")
 
 # --- TAB 4: VIDEO RENDER ---
 with t_video:
