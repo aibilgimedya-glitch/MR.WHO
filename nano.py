@@ -1484,20 +1484,13 @@ with st.sidebar:
                 st.error(message)
 
 # ============================================
-# LANDING PAGE - WEBGL SHADER ANIMATION
+# LANDING PAGE - REMOVED FOR DIRECT ACCESS
 # ============================================
+# Direct entry to app - no landing page
 if 'app_entered' not in st.session_state:
-    # Check URL params for direct entry
-    try:
-        from streamlit import query_params
-        if 'app_entered' in st.query_params:
-            st.session_state['app_entered'] = True
-        else:
-            st.session_state['app_entered'] = False
-    except:
-        st.session_state['app_entered'] = False
+    st.session_state['app_entered'] = True
 
-if not st.session_state['app_entered']:
+if False:  # Landing page disabled
     components.html("""
     <!DOCTYPE html>
     <html>
